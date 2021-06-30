@@ -17,7 +17,8 @@
 package de.gematik.rezeps.comfortsignature;
 
 import de.gematik.rezeps.KonnektorHelper;
-import de.gematik.rezeps.signature.SignatureServiceHelper;
+import de.gematik.rezeps.SoapClientInterceptor;
+import de.gematik.rezeps.WsdlContexts;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -27,6 +28,7 @@ import java.security.cert.CertificateException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
+import org.springframework.ws.client.support.interceptor.ClientInterceptor;
 
 /**
  * Die Klasse wird von Spring-Boot für das Marshalling und Unmarshalling von SOAP-Nachrichten
@@ -40,7 +42,7 @@ public class DeactivateComfortSignatureConfiguration {
     Jaxb2Marshaller marshaller = new Jaxb2Marshaller();
     // this package must match the package in the <generatePackage> specified in
     // pom.xml
-    marshaller.setPackagesToScan(SignatureServiceHelper.CONTEXT);
+    marshaller.setPackagesToScan(WsdlContexts.SIGNATURE_SERVICE_CONTEXT);
     return marshaller;
   }
 
@@ -56,6 +58,12 @@ public class DeactivateComfortSignatureConfiguration {
     client.setUnmarshaller(deActivateComfortSignatureMarshaller());
     // hier wird der MessageSender für TLS mit beidseitiger Authentisierung gesetzt
     client.setMessageSender(KonnektorHelper.determineHttpComponentsMessageSender());
+    client.setInterceptors(new ClientInterceptor[] {interceptor()});
     return client;
+  }
+
+  @Bean
+  public SoapClientInterceptor interceptor() {
+    return new SoapClientInterceptor();
   }
 }

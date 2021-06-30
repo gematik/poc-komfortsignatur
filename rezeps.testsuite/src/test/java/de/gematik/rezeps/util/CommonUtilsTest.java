@@ -23,6 +23,8 @@ import org.junit.Test;
 
 public class CommonUtilsTest {
 
+  public static final int BYTES_IN_256_BITS = 32;
+
   @Test
   public void isNullOrEmptyGivenNullStringTest() {
     String expected = null;
@@ -121,5 +123,13 @@ public class CommonUtilsTest {
   public void generateRNDUserIDAsStringOnlyNumbersTest() {
     String text = CommonUtils.generateRNDUserID();
     Assert.assertTrue(text.matches("[0-9]+"));
+  }
+
+  @Test
+  public void shouldGenerateRandomBytes() {
+    byte[] randomBytes = CommonUtils.generateRandomBytes(BYTES_IN_256_BITS);
+    Assert.assertNotNull("randomBytes sollte nicht null sein", randomBytes);
+    Assert.assertEquals(
+        "randomBytes hat nicht die erwartete Länge", BYTES_IN_256_BITS, randomBytes.length);
   }
 }

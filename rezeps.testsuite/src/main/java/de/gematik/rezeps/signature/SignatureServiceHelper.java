@@ -19,8 +19,6 @@ package de.gematik.rezeps.signature;
 /** Unterstützt den Zugriff auf den SignatureService. */
 public class SignatureServiceHelper {
 
-  public static final String CONTEXT = "de.gematik.ws.conn.signatureservice.v7";
-
   public static final String SIGNATURE_TYPE = "urn:ietf:rfc:5652";
   public static final String TV_MODE_NONE = "NONE";
   public static final boolean INCLUDE_REVOCATION_INFO = true;

@@ -21,6 +21,8 @@ import java.security.SecureRandom;
 
 public class CommonUtils {
 
+  private static final SecureRandom RANDOM = new SecureRandom();
+
   private CommonUtils() {
     throw new IllegalStateException("CommonUtils class");
   }
@@ -94,5 +96,17 @@ public class CommonUtils {
   public static String generateRNDUserID() {
     BigInteger res = CommonUtils.generateRNDIDNumber();
     return res.toString();
+  }
+
+  /**
+   * Generiert zufällige Bytes.
+   *
+   * @param numberOfBytes Anzahl der Bytes, die generiert werden sollen.
+   * @return Die generierten Bytes.
+   */
+  public static byte[] generateRandomBytes(int numberOfBytes) {
+    byte[] bytes = new byte[numberOfBytes];
+    RANDOM.nextBytes(bytes);
+    return bytes;
   }
 }

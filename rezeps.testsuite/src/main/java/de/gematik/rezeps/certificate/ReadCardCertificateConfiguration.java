@@ -17,6 +17,8 @@
 package de.gematik.rezeps.certificate;
 
 import de.gematik.rezeps.KonnektorHelper;
+import de.gematik.rezeps.SoapClientInterceptor;
+import de.gematik.rezeps.WsdlContexts;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -26,6 +28,7 @@ import java.security.cert.CertificateException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
+import org.springframework.ws.client.support.interceptor.ClientInterceptor;
 
 /**
  * Die Klasse wird von Spring-Boot für das Marshalling und Unmarshalling von SOAP-Nachrichten
@@ -34,14 +37,12 @@ import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 @Configuration
 public class ReadCardCertificateConfiguration {
 
-  private static final String CONTEXT_PATH = "de.gematik.ws.conn.certificateservice.v6";
-
   @Bean
   public Jaxb2Marshaller readCardCertificateMarshaller() {
     Jaxb2Marshaller marshaller = new Jaxb2Marshaller();
     // this package must match the package in the <generatePackage> specified in
     // pom.xml
-    marshaller.setContextPath(CONTEXT_PATH);
+    marshaller.setContextPath(WsdlContexts.CERTIFICATE_SERICE_CONTEXT);
     return marshaller;
   }
 
@@ -56,6 +57,12 @@ public class ReadCardCertificateConfiguration {
     client.setUnmarshaller(readCardCertificateMarshaller);
     // hier wird der MessageSender für TLS mit beidseitiger Authentisierung gesetzt
     client.setMessageSender(KonnektorHelper.determineHttpComponentsMessageSender());
+    client.setInterceptors(new ClientInterceptor[] {interceptor()});
     return client;
+  }
+
+  @Bean
+  public SoapClientInterceptor interceptor() {
+    return new SoapClientInterceptor();
   }
 }

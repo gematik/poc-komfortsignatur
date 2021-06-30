@@ -17,8 +17,12 @@
 package de.gematik.rezeps;
 
 import java.io.IOException;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KonnektorHelperTest {
 
@@ -34,6 +38,20 @@ public class KonnektorHelperTest {
 
   private static final String EXPECTED_ENDPOINT_CARD_TERMINAL_SERVICE =
       "https://127.0.0.1:443/cardterminalservice";
+  private static final Logger LOGGER = LoggerFactory.getLogger(KonnektorHelperTest.class);
+
+  @BeforeClass
+  public static void beforeClass() {
+    LOGGER.info(
+        "Set environment to use configuration.unittest.properties file (preventing build failure on other configurations)");
+    System.setProperty("CFG_PROPS", "unittest");
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    LOGGER.info("cleanup environment");
+    System.clearProperty("CFG_PROPS");
+  }
 
   @Test
   public void shouldDetermineAuthSignatureServiceEndpoint() throws IOException {

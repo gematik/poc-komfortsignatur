@@ -17,6 +17,8 @@
 package de.gematik.rezeps.card;
 
 import de.gematik.rezeps.KonnektorHelper;
+import de.gematik.rezeps.SoapClientInterceptor;
+import de.gematik.rezeps.WsdlContexts;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -26,17 +28,16 @@ import java.security.cert.CertificateException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
+import org.springframework.ws.client.support.interceptor.ClientInterceptor;
 
 @Configuration
 public class GetPinStatusConfiguration {
-
-  public static final String CONTEXT_PATH = "de.gematik.ws.conn.cardservice.v8";
 
   @Bean
   public Jaxb2Marshaller marshaller() {
     Jaxb2Marshaller marshaller = new Jaxb2Marshaller();
     // this package must match the package in the <generatePackage> specified in pom.xml
-    marshaller.setContextPath(CONTEXT_PATH);
+    marshaller.setContextPath(WsdlContexts.CARD_SERVICE_CONTEXT);
     return marshaller;
   }
 
@@ -49,6 +50,13 @@ public class GetPinStatusConfiguration {
     getPinStatus.setDefaultUri(KonnektorHelper.determineEventServiceEndpoint());
     getPinStatus.setUnmarshaller(marshaller);
     getPinStatus.setMessageSender(KonnektorHelper.determineHttpComponentsMessageSender());
+
+    getPinStatus.setInterceptors(new ClientInterceptor[] {interceptor()});
     return getPinStatus;
+  }
+
+  @Bean
+  public SoapClientInterceptor interceptor() {
+    return new SoapClientInterceptor();
   }
 }

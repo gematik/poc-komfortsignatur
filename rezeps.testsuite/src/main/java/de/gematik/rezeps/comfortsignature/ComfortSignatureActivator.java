@@ -23,6 +23,8 @@ import de.gematik.ws.conn.signatureservice.v7.SignatureModeEnum;
 import java.io.IOException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.ws.soap.SoapFault;
+import org.springframework.ws.soap.client.SoapFaultClientException;
 
 @Component
 public class ComfortSignatureActivator {
@@ -38,16 +40,21 @@ public class ComfortSignatureActivator {
   public ComfortSignatureResult activateComfortSignature(
       InvocationContext invocationContext, String cardHandle) throws IOException {
     ComfortSignatureResult comfortSignatureResult = new ComfortSignatureResult();
-    ActivateComfortSignatureResponse activateComfortSignatureResponse =
-        performActivateComfortSignature.performActivateComfortSignature(
-            invocationContext, cardHandle);
-    Status status = activateComfortSignatureResponse.getStatus();
-    if (status != null) {
-      comfortSignatureResult.setStatus(status.getResult());
-    }
-    SignatureModeEnum signatureMode = activateComfortSignatureResponse.getSignatureMode();
-    if (signatureMode != null) {
-      comfortSignatureResult.setSignatureMode(signatureMode.value());
+    try {
+      ActivateComfortSignatureResponse activateComfortSignatureResponse =
+          performActivateComfortSignature.performActivateComfortSignature(
+              invocationContext, cardHandle);
+      Status status = activateComfortSignatureResponse.getStatus();
+      if (status != null) {
+        comfortSignatureResult.setStatus(status.getResult());
+      }
+      SignatureModeEnum signatureMode = activateComfortSignatureResponse.getSignatureMode();
+      if (signatureMode != null) {
+        comfortSignatureResult.setSignatureMode(signatureMode.value());
+      }
+    } catch (SoapFaultClientException exception) {
+      SoapFault soapFault = exception.getSoapFault();
+      comfortSignatureResult.setSoapFault(soapFault.getFaultStringOrReason());
     }
     return comfortSignatureResult;
   }

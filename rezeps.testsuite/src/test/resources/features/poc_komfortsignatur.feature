@@ -5,12 +5,11 @@ Feature: Komfortsignatur
   2. SAK_COMFORT_SIGNATURE = Enabled
 
   Background:
-    Given Aufrufkontext "Mandant1", "ClientID1" und "Workplace1" ist gesetzt
-    And Das Handle eines signierenden HBAs liegt vor
+    Given Das Handle eines signierenden HBAs liegt vor
 
 
   Scenario: Testfall: Komfort-Signatur aktivieren
-
+    Given Aufrufkontext "Mandant1", "ClientID1" und "Workplace1" ist gesetzt
     When PS erstellt neue UserID
     When PS aktiviert Komfortsignatur
     Then Konnektor schickt ActivateComfortSignature-Response mit Status OK
@@ -33,13 +32,13 @@ Feature: Komfortsignatur
   Scenario: Testfall: Qualifiziert signieren mit Komfort-Signatur nach Wechsel des Arbeitsplatzes
 
     Given Eine Job-ID zum Signieren eines Dokumentes ist verfügbar
-    And Aufrufkontext "Mandant1", "ClientID1" und "Workplace2" ist gesetzt
     And Verordnungsdatensatz für Coverage wurde erstellt: "109500969", "Test GKV-SV", "1"
     And Verordnungsdatensatz für Patient wurde erstellt: "Angermänn", "Günther", "X1104655770", "Straße", "Hausnummer", "10905", "Berlin", "01.04.1998",
     And Verordnungsdatensatz für Medication wurde erstellt: "1527732", "Trimipramin-neuraxpharm"
     And UserId liegt vor
 
-    When E-Rezept mittels HBA signieren
+    When Arbeitsplatz wurde auf "Workplace2" gewechselt
+    And E-Rezept mittels HBA signieren
     Then Konnektor schickt SignDocument-Response mit Status OK
 
 

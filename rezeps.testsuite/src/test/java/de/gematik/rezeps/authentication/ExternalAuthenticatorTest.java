@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 import de.gematik.rezeps.InvocationContext;
 import de.gematik.ws.conn.connectorcommon.v5.Status;
-import de.gematik.ws.conn.signatureservice.v7.ExternalAuthenticateResponse;
+import de.gematik.ws.conn.signatureservice.v7_4.ExternalAuthenticateResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import oasis.names.tc.dss._1_0.core.schema.Base64Signature;
@@ -66,9 +66,11 @@ public class ExternalAuthenticatorTest {
     ExternalAuthenticator externalAuthenticator = new ExternalAuthenticator();
     externalAuthenticator.performExternalAuthenticate = performExternalAuthenticate;
 
-    byte[] signedData =
+    ExternalAuthenticateResult externalAuthenticateResult =
         externalAuthenticator.authenticateExternally(
             invocationContext, CARD_HANDLE, DATA_TO_BE_SIGNED);
-    Assert.assertEquals(SIGNED_DATA, signedData);
+    ExternalAuthenticateResult expectedExternalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, SIGNED_DATA);
+    Assert.assertEquals(expectedExternalAuthenticateResult, externalAuthenticateResult);
   }
 }

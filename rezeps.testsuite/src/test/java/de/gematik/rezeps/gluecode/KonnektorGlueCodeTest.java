@@ -21,11 +21,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.gematik.rezeps.InvocationContext;
-import de.gematik.rezeps.UserIdHelper;
+import de.gematik.rezeps.authentication.ExternalAuthenticateResult;
 import de.gematik.rezeps.authentication.ExternalAuthenticator;
 import de.gematik.rezeps.card.CardHandleFinder;
 import de.gematik.rezeps.card.PinStatus;
 import de.gematik.rezeps.card.PinStatusResult;
+import de.gematik.rezeps.card.PinVerifier;
+import de.gematik.rezeps.card.VerifyPinResult;
+import de.gematik.rezeps.cardterminal.CardEjector;
+import de.gematik.rezeps.cardterminal.CardRequestor;
+import de.gematik.rezeps.cardterminal.CardTerminalsGetter;
+import de.gematik.rezeps.cardterminal.EjectCardResult;
+import de.gematik.rezeps.cardterminal.GetCardTerminalsResult;
+import de.gematik.rezeps.cardterminal.RequestCardResult;
 import de.gematik.rezeps.certificate.CardCertificateReader;
 import de.gematik.rezeps.comfortsignature.ComfortSignatureActivator;
 import de.gematik.rezeps.comfortsignature.ComfortSignatureDeactivator;
@@ -34,6 +42,7 @@ import de.gematik.rezeps.comfortsignature.SignatureModeGetter;
 import de.gematik.rezeps.signature.SignDocumentResult;
 import de.gematik.rezeps.util.CommonUtils;
 import de.gematik.ws.conn.cardservice.v8.PinStatusEnum;
+import de.gematik.ws.conn.cardservicecommon.v2.PinResultEnum;
 import de.gematik.ws.conn.connectorcommon.v5.Status;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -49,16 +58,20 @@ public class KonnektorGlueCodeTest {
   private static final String MANDANT = "mandantId";
   private static final String CLIENT_SYSTEM = "clientSystemId";
   private static final String WORKPLACE = "workplaceId";
+  private static final String WORKPLACE_2 = "workplaceId_2";
   private static final String USER = "userId";
   private static final String CARD_HANDLE = "HBA-1";
   private static final String SMC_B_HANDLE = "SMC_B-1";
   private static final byte[] EXPECTED_AUT_CERTIFICATE =
       "Ich bin ein AUT-Zertifikat".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] DATA_TO_BE_SIGNED =
-      "ich moechte signiert werden".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SIGNED_DATA = "ich bin signiert".getBytes(StandardCharsets.UTF_8);
   private static final byte[] CODE_CHALLENGE = "code_challenge".getBytes(StandardCharsets.UTF_8);
   private static final String SIGNATURE_MODE_PIN = "PIN";
+  private static final String CT_ID = "dummy_ct_id_01";
+
+  public static final String RESULT_OK = "OK";
+  public static final String RESULT_WARNING = "Warning";
+  public static final int SLOT_2 = 2;
 
   @Test
   public void shouldReadCardCertificate() throws IOException, MissingPreconditionException {
@@ -101,17 +114,34 @@ public class KonnektorGlueCodeTest {
   }
 
   @Test
-  public void shouldAuthenticateExternally() throws MissingPreconditionException, IOException {
+  public void shouldAuthenticateExternallySmcB() throws MissingPreconditionException, IOException {
     ExternalAuthenticator externalAuthenticator = mock(ExternalAuthenticator.class);
     InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    ExternalAuthenticateResult externalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, SIGNED_DATA);
     when(externalAuthenticator.authenticateExternally(
             invocationContext, SMC_B_HANDLE, CODE_CHALLENGE))
-        .thenReturn(SIGNED_DATA);
+        .thenReturn(externalAuthenticateResult);
 
     TestcaseData testcaseData = TestcaseData.getInstance();
     testcaseData.setInvocationContext(invocationContext);
     testcaseData.setSmcBHandle(SMC_B_HANDLE);
     testcaseData.setCodeChallenge(CODE_CHALLENGE);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        determineConfigurableApplicationContextForExternalAuthenticate(externalAuthenticator);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.authenticateExternallySmcB();
+
+    ExternalAuthenticateResult expectedExternalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, SIGNED_DATA);
+    Assert.assertEquals(
+        expectedExternalAuthenticateResult, testcaseData.getExternalAuthenticateResult());
+  }
+
+  private ConfigurableApplicationContext
+      determineConfigurableApplicationContextForExternalAuthenticate(
+          ExternalAuthenticator externalAuthenticator) {
 
     ConfigurableListableBeanFactory configurableListableBeanFactory =
         mock(ConfigurableListableBeanFactory.class);
@@ -123,14 +153,11 @@ public class KonnektorGlueCodeTest {
     when(configurableApplicationContext.getBeanFactory())
         .thenReturn(configurableListableBeanFactory);
 
-    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
-    konnektorGlueCode.authenticateExternally();
-
-    Assert.assertEquals(SIGNED_DATA, testcaseData.getAuthenticatedData());
+    return configurableApplicationContext;
   }
 
   @Test(expected = MissingPreconditionException.class)
-  public void shouldNotAuthenticateExternallyOnMissingInvocationContext()
+  public void shouldNotAuthenticateExternallySmcBOnMissingInvocationContext()
       throws MissingPreconditionException {
     TestcaseData testcaseData = TestcaseData.getInstance();
     testcaseData.setInvocationContext(null);
@@ -138,11 +165,11 @@ public class KonnektorGlueCodeTest {
     testcaseData.setCodeChallenge(CODE_CHALLENGE);
 
     KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
-    konnektorGlueCode.authenticateExternally();
+    konnektorGlueCode.authenticateExternallySmcB();
   }
 
   @Test(expected = MissingPreconditionException.class)
-  public void shouldNotAuthenticateExternallyOnMissingCardHandle()
+  public void shouldNotAuthenticateExternallySmcBOnMissingCardHandle()
       throws MissingPreconditionException {
     TestcaseData testcaseData = TestcaseData.getInstance();
     testcaseData.setInvocationContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
@@ -150,11 +177,11 @@ public class KonnektorGlueCodeTest {
     testcaseData.setCodeChallenge(CODE_CHALLENGE);
 
     KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
-    konnektorGlueCode.authenticateExternally();
+    konnektorGlueCode.authenticateExternallySmcB();
   }
 
   @Test(expected = MissingPreconditionException.class)
-  public void shouldNotAuthenticateExternallyOnEmptyDataToBeSigned()
+  public void shouldNotAuthenticateExternallySmcBOnEmptyDataToBeSigned()
       throws MissingPreconditionException {
     ConfigurableApplicationContext configurableApplicationContext =
         mock(ConfigurableApplicationContext.class);
@@ -165,7 +192,72 @@ public class KonnektorGlueCodeTest {
     testcaseData.setCodeChallenge(new byte[] {});
 
     KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
-    konnektorGlueCode.authenticateExternally();
+    konnektorGlueCode.authenticateExternallySmcB();
+  }
+
+  @Test
+  public void shouldAuthenticateExternallyHba() throws MissingPreconditionException, IOException {
+    ExternalAuthenticator externalAuthenticator = mock(ExternalAuthenticator.class);
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    ExternalAuthenticateResult externalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, SIGNED_DATA);
+    when(externalAuthenticator.authenticateExternally(
+            invocationContext, CARD_HANDLE, CODE_CHALLENGE))
+        .thenReturn(externalAuthenticateResult);
+
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(invocationContext);
+    testcaseData.setHbaHandle(CARD_HANDLE);
+    testcaseData.setCodeChallenge(CODE_CHALLENGE);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        determineConfigurableApplicationContextForExternalAuthenticate(externalAuthenticator);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.authenticateExternallyHba();
+
+    ExternalAuthenticateResult expectedExternalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, SIGNED_DATA);
+    Assert.assertEquals(
+        expectedExternalAuthenticateResult, testcaseData.getExternalAuthenticateResult());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldNotAuthenticateExternallyHbaOnMissingInvocationContext()
+      throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(null);
+    testcaseData.setHbaHandle(CARD_HANDLE);
+    testcaseData.setCodeChallenge(CODE_CHALLENGE);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.authenticateExternallyHba();
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldNotAuthenticateExternallyHbaOnMissingCardHandle()
+      throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
+    testcaseData.setHbaHandle(null);
+    testcaseData.setCodeChallenge(CODE_CHALLENGE);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.authenticateExternallyHba();
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldNotAuthenticateExternallyHbaOnEmptyDataToBeSigned()
+      throws MissingPreconditionException {
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
+    testcaseData.setHbaHandle(CARD_HANDLE);
+    testcaseData.setCodeChallenge(new byte[] {});
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.authenticateExternallyHba();
   }
 
   @Test
@@ -257,16 +349,6 @@ public class KonnektorGlueCodeTest {
     InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
     Assert.assertFalse(CommonUtils.isNullOrEmpty(invocationContext.getUser()));
     Assert.assertNotEquals(USER, invocationContext.getUser());
-  }
-
-  @Test
-  public void shouldWriteUserIdToFile() throws MissingPreconditionException, IOException {
-    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
-    konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
-    konnektorGlueCode.determineUserId();
-    String expectedUserId = TestcaseData.getInstance().getInvocationContext().getUser();
-    String userIdFromFile = UserIdHelper.readUserIdFromFile();
-    Assert.assertEquals(expectedUserId, userIdFromFile);
   }
 
   @Test
@@ -369,6 +451,38 @@ public class KonnektorGlueCodeTest {
     when(beanFactory.getBean(ComfortSignatureDeactivator.class))
         .thenReturn(comfortSignatureDeActivator);
     return configurableApplicationContext;
+  }
+
+  @Test
+  public void shouldValidateActivateComfortSignatureSoapFault4018()
+      throws MissingPreconditionException {
+    ComfortSignatureResult comfortSignatureResult = new ComfortSignatureResult();
+    comfortSignatureResult.setSoapFault(ERROR_TEXT_4018);
+    TestcaseData.getInstance().setActivateComfortSignatureResult(comfortSignatureResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isActivateComfortSignatureSoapFault4018());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void
+      shouldNotValidateActivateComfortSignatureSoapFault4018OnMissingActivateComfortSignatureResult()
+          throws MissingPreconditionException {
+    TestcaseData.getInstance().setActivateComfortSignatureResult(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.isActivateComfortSignatureSoapFault4018();
+  }
+
+  @Test
+  public void shouldNotValidateActivateComfortSignatureOnInvalidSoapFault()
+      throws MissingPreconditionException {
+    ComfortSignatureResult comfortSignatureResult = new ComfortSignatureResult();
+    comfortSignatureResult.setSoapFault("ich bin nicht der richtige SOAP-Fault");
+    TestcaseData.getInstance().setActivateComfortSignatureResult(comfortSignatureResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isActivateComfortSignatureSoapFault4018());
   }
 
   @Test
@@ -590,7 +704,7 @@ public class KonnektorGlueCodeTest {
 
   @Test(expected = MissingPreconditionException.class)
   public void shouldDeterminePinStatusQesFailWhenNoInvocationContextIsSet()
-      throws MissingPreconditionException, IOException {
+      throws MissingPreconditionException {
 
     KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
 
@@ -852,7 +966,6 @@ public class KonnektorGlueCodeTest {
     konnektorGlueCode.determineUserId();
     InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
     String expectedUserId = invocationContext.getUser();
-    invocationContext.setUser("invalid user");
     konnektorGlueCode.ensureUserId();
     Assert.assertEquals(expectedUserId, invocationContext.getUser());
   }
@@ -865,13 +978,529 @@ public class KonnektorGlueCodeTest {
     konnektorGlueCode.ensureUserId();
   }
 
+  @Test
+  public void shouldVerifyPin() throws IOException, MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext =
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER);
+    testcaseData.setInvocationContext(invocationContext);
+    testcaseData.setHbaHandle(CARD_HANDLE);
+
+    PinVerifier pinVerifier = mock(PinVerifier.class);
+    VerifyPinResult verifyPinResultExpected =
+        new VerifyPinResult(STATUS_OK, PinResultEnum.OK.value());
+    when(pinVerifier.performVerifyPin(invocationContext, CARD_HANDLE))
+        .thenReturn(verifyPinResultExpected);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(PinVerifier.class)).thenReturn(pinVerifier);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.verifyPin();
+
+    Assert.assertEquals(verifyPinResultExpected, testcaseData.getVerifyPinResult());
+  }
+
   @Test(expected = MissingPreconditionException.class)
-  public void shouldFailEnsureUserIdOnMissingUserId()
-      throws MissingPreconditionException, IOException {
+  public void shouldFailVerifyPinOnMissingInvocationContext() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(null);
+    testcaseData.setHbaHandle(CARD_HANDLE);
+
     KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
-    TestcaseData.getInstance()
-        .setInvocationContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
-    UserIdHelper.deleteUserIdFile();
-    konnektorGlueCode.ensureUserId();
+    konnektorGlueCode.verifyPin();
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldFailVerifyPinOnMissingCardHandle() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext =
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER);
+    testcaseData.setInvocationContext(invocationContext);
+    testcaseData.setHbaHandle(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.verifyPin();
+  }
+
+  @Test
+  public void shouldNotValidateCheckSignDocumentHasFailed() throws MissingPreconditionException {
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    SignDocumentResult signDocumentResultMock = mock(SignDocumentResult.class);
+    when(signDocumentResultMock.isValidResponse()).thenReturn(true);
+    when(signDocumentResultMock.getSignedBundle()).thenReturn(new byte[] {1, 2, 3, 4, 5});
+    TestcaseData.getInstance().setSignDocumentResult(signDocumentResultMock);
+    boolean actual = konnektorGlueCode.checkSignDocumentHasFailed();
+    Assert.assertFalse(
+        MessageFormat.format(
+            "Es wird ein Wert \"false\" erwartet. Der Wert ist jedoch \"{0}\".", actual),
+        actual);
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void checkSignDocumentWillFailOnMissingSignDocumentResultTest()
+      throws MissingPreconditionException {
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    TestcaseData.getInstance().setSignDocumentResult(null);
+    boolean actual = konnektorGlueCode.checkSignDocumentHasFailed();
+    Assert.assertTrue(
+        MessageFormat.format(
+            "Es wird ein Wert \"true\" erwartet. Der Wert ist jedoch \"{0}\".", actual),
+        actual);
+  }
+
+  @Test
+  public void checkSignDocumentHasFailedTestOnInvalidSignatureResultResponse()
+      throws MissingPreconditionException {
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    SignDocumentResult signDocumentResultMock = mock(SignDocumentResult.class);
+    when(signDocumentResultMock.isValidResponse()).thenReturn(false);
+    boolean actual = konnektorGlueCode.checkSignDocumentHasFailed();
+    Assert.assertTrue(
+        MessageFormat.format(
+            "Es wird ein Wert \"true\" erwartet. Der Wert ist jedoch \"{0}\".", actual),
+        actual);
+  }
+
+  @Test
+  public void shouldValidateVerifyPinResult() throws MissingPreconditionException {
+    VerifyPinResult verifyPinResult =
+        new VerifyPinResult(VerifyPinResult.STATUS_OK, VerifyPinResult.PIN_RESULT_OK);
+    TestcaseData.getInstance().setVerifyPinResult(verifyPinResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isVerifyPinOk());
+  }
+
+  @Test
+  public void shouldNotValidateVerifyPinResult() throws MissingPreconditionException {
+    VerifyPinResult verifyPinResult = new VerifyPinResult("NOK", VerifyPinResult.PIN_RESULT_OK);
+    TestcaseData.getInstance().setVerifyPinResult(verifyPinResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isVerifyPinOk());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldNotValidateVerifyPinResultOnMissingVerifyPinResult()
+      throws MissingPreconditionException {
+    TestcaseData.getInstance().setVerifyPinResult(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.isVerifyPinOk();
+  }
+
+  @Test
+  public void shouldEjectCard() throws IOException, MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext =
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER);
+    testcaseData.setInvocationContext(invocationContext);
+    testcaseData.setHbaHandle(CARD_HANDLE);
+
+    CardEjector cardEjector = mock(CardEjector.class);
+    EjectCardResult ejectCardResultExpected = new EjectCardResult(STATUS_OK);
+    when(cardEjector.performEjectCard(invocationContext, CARD_HANDLE))
+        .thenReturn(ejectCardResultExpected);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardEjector.class)).thenReturn(cardEjector);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.ejectCard();
+
+    Assert.assertEquals(ejectCardResultExpected, testcaseData.getEjectCardResult());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldFailEjectCardOnMissingInvocationContext() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(null);
+    testcaseData.setHbaHandle(CARD_HANDLE);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.ejectCard();
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldFailEjectCardOnMissingCardHandle() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext =
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER);
+    testcaseData.setInvocationContext(invocationContext);
+    testcaseData.setHbaHandle(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.ejectCard();
+  }
+
+  @Test
+  public void shouldValidateEjectCardResult() throws MissingPreconditionException {
+    EjectCardResult ejectCardResult = new EjectCardResult(RESULT_OK);
+    TestcaseData.getInstance().setEjectCardResult(ejectCardResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isEjectCardOk());
+  }
+
+  @Test
+  public void shouldNotValidateEjectCardResultOnWarning() throws MissingPreconditionException {
+    EjectCardResult ejectCardResult = new EjectCardResult(RESULT_WARNING);
+    TestcaseData.getInstance().setEjectCardResult(ejectCardResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isEjectCardOk());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldNotValidateEjectCardResultOnMissingEjectCardResult()
+      throws MissingPreconditionException {
+    TestcaseData.getInstance().setEjectCardResult(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.isEjectCardOk();
+  }
+
+  @Test
+  public void shouldDetermineCardTerminals() throws MissingPreconditionException, IOException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    testcaseData.setInvocationContext(invocationContext);
+
+    CardTerminalsGetter cardTerminalsGetter = mock(CardTerminalsGetter.class);
+    GetCardTerminalsResult getCardTerminalsResultExpected =
+        new GetCardTerminalsResult(STATUS_OK, CT_ID);
+    when(cardTerminalsGetter.performGetCardTerminals(invocationContext))
+        .thenReturn(getCardTerminalsResultExpected);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardTerminalsGetter.class))
+        .thenReturn(cardTerminalsGetter);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.determineCardTerminals();
+
+    Assert.assertEquals(getCardTerminalsResultExpected, testcaseData.getGetCardTerminalsResult());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldFailDetermineCardTerminalsOnMissingInvocationContext()
+      throws MissingPreconditionException {
+    TestcaseData.getInstance().setInvocationContext(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.determineCardTerminals();
+  }
+
+  @Test
+  public void shouldValidateGetCardTerminalsResponse() throws MissingPreconditionException {
+    GetCardTerminalsResult getCardTerminalsResult = new GetCardTerminalsResult(RESULT_OK, CT_ID);
+    TestcaseData.getInstance().setGetCardTerminalsResult(getCardTerminalsResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isGetCardTerminalsOk());
+  }
+
+  @Test
+  public void shouldNotValidateGetCardTerminalsResponse() throws MissingPreconditionException {
+    GetCardTerminalsResult getCardTerminalsResult =
+        new GetCardTerminalsResult(RESULT_WARNING, CT_ID);
+    TestcaseData.getInstance().setGetCardTerminalsResult(getCardTerminalsResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isGetCardTerminalsOk());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldThrowExceptionOnMissingGetCardTerminalsResult()
+      throws MissingPreconditionException {
+    TestcaseData.getInstance().setGetCardTerminalsResult(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.isGetCardTerminalsOk();
+  }
+
+  @Test
+  public void shouldRequestCard() throws IOException, MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    testcaseData.setInvocationContext(invocationContext);
+
+    CardRequestor cardRequestor = mock(CardRequestor.class);
+    RequestCardResult expectedRequestCardResult = new RequestCardResult(STATUS_OK, CARD_HANDLE);
+    when(cardRequestor.performRequestCard(invocationContext, CT_ID, SLOT_2))
+        .thenReturn(expectedRequestCardResult);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardRequestor.class)).thenReturn(cardRequestor);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    konnektorGlueCode.requestCard(CT_ID, SLOT_2);
+
+    Assert.assertEquals(expectedRequestCardResult, testcaseData.getRequestCardResult());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldFailRequestCardOnMissingInvocationContext()
+      throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(null);
+    GetCardTerminalsResult getCardTerminalsResult = new GetCardTerminalsResult(STATUS_OK, CT_ID);
+    testcaseData.setGetCardTerminalsResult(getCardTerminalsResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.requestCard(CT_ID, SLOT_2);
+  }
+
+  @Test
+  public void shouldValidateRequestCardResponse() throws MissingPreconditionException {
+    RequestCardResult requestCardResult = new RequestCardResult(STATUS_OK, CARD_HANDLE);
+    TestcaseData.getInstance().setRequestCardResult(requestCardResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isRequestCardOk());
+  }
+
+  @Test
+  public void shouldNotValidateRequestCardResponse() throws MissingPreconditionException {
+    RequestCardResult requestCardResult = new RequestCardResult(RESULT_WARNING, CARD_HANDLE);
+    TestcaseData.getInstance().setRequestCardResult(requestCardResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isRequestCardOk());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldThrowExceptionOnMissingRequestCardResult() throws MissingPreconditionException {
+    TestcaseData.getInstance().setRequestCardResult(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isRequestCardOk());
+  }
+
+  @Test
+  public void shouldValidateExternalAuthenticateResponse() throws MissingPreconditionException {
+    ExternalAuthenticateResult externalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, SIGNED_DATA);
+    TestcaseData.getInstance().setExternalAuthenticateResult(externalAuthenticateResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isExternalAuthenticateOk());
+  }
+
+  @Test
+  public void shouldNotValidateExternalAuthenticateResponse() throws MissingPreconditionException {
+    ExternalAuthenticateResult externalAuthenticateResult =
+        new ExternalAuthenticateResult(STATUS_OK, null);
+    TestcaseData.getInstance().setExternalAuthenticateResult(externalAuthenticateResult);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isExternalAuthenticateOk());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldThrowExceptionOnMissingExternalAuthenticateResult()
+      throws MissingPreconditionException {
+    TestcaseData.getInstance().setExternalAuthenticateResult(null);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.isExternalAuthenticateOk();
+  }
+
+  @Test
+  public void shouldDetermineHbaHandleWithIccsn() throws IOException, MissingPreconditionException {
+    CardHandleFinder cardHandleFinder = mock(CardHandleFinder.class);
+    TestcaseData.getInstance().setHbaHandle(null);
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    when(cardHandleFinder.determineHbaHandle(invocationContext, "ICCSN")).thenReturn(CARD_HANDLE);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardHandleFinder.class))
+        .thenReturn(cardHandleFinder);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(invocationContext);
+    konnektorGlueCode.determineHbaHandle("ICCSN");
+    Assert.assertEquals(CARD_HANDLE, testcaseData.getHbaHandle());
+  }
+
+  @Test
+  public void shouldDetermineSmcBHandleWithICCSN()
+      throws IOException, MissingPreconditionException {
+    CardHandleFinder cardHandleFinder = mock(CardHandleFinder.class);
+    TestcaseData.getInstance().setSmcBHandle(null);
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    when(cardHandleFinder.determineSmcBHandle(invocationContext, "DUMMY-ICCSN"))
+        .thenReturn(SMC_B_HANDLE);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardHandleFinder.class))
+        .thenReturn(cardHandleFinder);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setInvocationContext(invocationContext);
+    konnektorGlueCode.determineSmcBHandle("DUMMY-ICCSN");
+    Assert.assertEquals(SMC_B_HANDLE, testcaseData.getSmcBHandle());
+  }
+
+  @Test
+  public void shouldDetermineHBAqSigHandleWithAndWithoutIccsn()
+      throws IOException, MissingPreconditionException {
+    CardHandleFinder cardHandleFinder = mock(CardHandleFinder.class);
+
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    when(cardHandleFinder.determineHBAQSigHandle(invocationContext, "HBAqSig-ICCSN"))
+        .thenReturn(CARD_HANDLE);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardHandleFinder.class))
+        .thenReturn(cardHandleFinder);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setSmcBHandle(null);
+    testcaseData.setHbaHandle(null);
+    testcaseData.setInvocationContext(invocationContext);
+    konnektorGlueCode.determineHBAqSigHandle("HBAqSig-ICCSN");
+    Assert.assertEquals(
+        "Required Card Handle with ICCSN did not match.", CARD_HANDLE, testcaseData.getHbaHandle());
+    // second case (without iccsn)
+    testcaseData.setHbaHandle(null);
+    testcaseData.setSmcBHandle(null);
+    when(cardHandleFinder.determineHBAQSigHandle(invocationContext)).thenReturn(CARD_HANDLE);
+    konnektorGlueCode.determineHBAqSigHandle();
+    Assert.assertEquals(
+        "Required Card Handle without ICCSN did not match",
+        CARD_HANDLE,
+        testcaseData.getHbaHandle());
+  }
+
+  @Test
+  public void shouldDetermineZOD20HandleWithAndWithoutICCSN()
+      throws IOException, MissingPreconditionException {
+    CardHandleFinder cardHandleFinder = mock(CardHandleFinder.class);
+
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    when(cardHandleFinder.determineZOD20Handle(invocationContext, "DUMMY-ZOD20-ICCSN"))
+        .thenReturn(CARD_HANDLE);
+
+    ConfigurableListableBeanFactory configurableListableBeanFactory =
+        mock(ConfigurableListableBeanFactory.class);
+    when(configurableListableBeanFactory.getBean(CardHandleFinder.class))
+        .thenReturn(cardHandleFinder);
+
+    ConfigurableApplicationContext configurableApplicationContext =
+        mock(ConfigurableApplicationContext.class);
+    when(configurableApplicationContext.getBeanFactory())
+        .thenReturn(configurableListableBeanFactory);
+
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(configurableApplicationContext);
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    testcaseData.setHbaHandle(null);
+    testcaseData.setSmcBHandle(null);
+    testcaseData.setInvocationContext(invocationContext);
+    konnektorGlueCode.determineZOD20Handle("DUMMY-ZOD20-ICCSN");
+    Assert.assertEquals(
+        "Required Card Handle with ICCSN did not match", CARD_HANDLE, testcaseData.getHbaHandle());
+
+    // second case (without iccsn)
+    testcaseData.setHbaHandle(null);
+    testcaseData.setSmcBHandle(null);
+    when(cardHandleFinder.determineZOD20Handle(invocationContext)).thenReturn(CARD_HANDLE);
+    konnektorGlueCode.determineZOD20Handle();
+    Assert.assertEquals(
+        "Required Card Handle without ICCSN did not match",
+        CARD_HANDLE,
+        testcaseData.getHbaHandle());
+  }
+
+  @Test
+  public void shouldBeEjectCardSoapFault4203() throws MissingPreconditionException {
+    EjectCardResult ejectCardResult = new EjectCardResult();
+    ejectCardResult.setSoapFault(EjectCardResult.ERROR_TEXT_4203);
+    TestcaseData.getInstance().setEjectCardResult(ejectCardResult);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isEjectCardSoapFault4203());
+  }
+
+  @Test
+  public void shouldNotBeEjectCardSoapFault4203() throws MissingPreconditionException {
+    EjectCardResult ejectCardResult = new EjectCardResult();
+    ejectCardResult.setSoapFault(ERROR_TEXT_4018);
+    TestcaseData.getInstance().setEjectCardResult(ejectCardResult);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertFalse(konnektorGlueCode.isEjectCardSoapFault4203());
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldThrowExceptionOnMissingEjectCardResult() throws MissingPreconditionException {
+    TestcaseData.getInstance().setEjectCardResult(null);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    Assert.assertTrue(konnektorGlueCode.isEjectCardSoapFault4203());
+  }
+
+  @Test
+  public void shouldSwitchWorkplace() throws MissingPreconditionException {
+    InvocationContext invocationContext =
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER);
+    TestcaseData.getInstance().setInvocationContext(invocationContext);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.switchWorkplace(WORKPLACE_2);
+    Assert.assertEquals(invocationContext.getMandant(), MANDANT);
+    Assert.assertEquals(invocationContext.getClientSystem(), CLIENT_SYSTEM);
+    Assert.assertEquals(invocationContext.getWorkplace(), WORKPLACE_2);
+    Assert.assertEquals(invocationContext.getUser(), USER);
+  }
+
+  @Test(expected = MissingPreconditionException.class)
+  public void shouldFailSwitchWorkplaceOnMissingInvocationContext()
+      throws MissingPreconditionException {
+    TestcaseData.getInstance().setInvocationContext(null);
+    KonnektorGlueCode konnektorGlueCode = new KonnektorGlueCode(null);
+    konnektorGlueCode.switchWorkplace(WORKPLACE_2);
   }
 }

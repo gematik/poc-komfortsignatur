@@ -16,10 +16,10 @@
 
 package de.gematik.rezeps.fd;
 
-import de.gematik.rezeps.dataexchange.create.TaskAcceptData;
-import de.gematik.rezeps.dataexchange.create.TaskActivateData;
-import de.gematik.rezeps.dataexchange.create.TaskCloseData;
-import de.gematik.rezeps.dataexchange.create.TaskCreateData;
+import de.gematik.rezeps.dataexchange.TaskAcceptData;
+import de.gematik.rezeps.dataexchange.TaskActivateData;
+import de.gematik.rezeps.dataexchange.TaskCloseData;
+import de.gematik.rezeps.dataexchange.TaskCreateData;
 import java.nio.charset.StandardCharsets;
 import org.junit.Assert;
 import org.junit.Test;

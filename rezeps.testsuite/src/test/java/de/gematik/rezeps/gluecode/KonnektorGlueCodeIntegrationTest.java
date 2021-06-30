@@ -20,6 +20,7 @@ import de.gematik.rezeps.InvocationContext;
 import de.gematik.rezeps.KonnektorClient;
 import de.gematik.rezeps.bundle.BundleHelper;
 import de.gematik.rezeps.bundle.Patient;
+import de.gematik.rezeps.cardterminal.EjectCardResult;
 import de.gematik.rezeps.comfortsignature.ComfortSignatureResult;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -57,8 +58,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineCardHandle() throws MissingPreconditionException {
     InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
     TestcaseData.getInstance().setInvocationContext(invocationContext);
@@ -69,8 +69,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineSmcbHandle() throws MissingPreconditionException {
     InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
     TestcaseData.getInstance().setInvocationContext(invocationContext);
@@ -81,8 +80,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineAutCertificate() throws MissingPreconditionException {
     konnektorGlueCode.determineHbaHandle();
     konnektorGlueCode.readCardCertificate();
@@ -90,21 +88,21 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
-  public void shouldAuthenticateExternally() throws MissingPreconditionException, DecoderException {
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
+  public void shouldAuthenticateExternallySmcB()
+      throws MissingPreconditionException, DecoderException {
     konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
     konnektorGlueCode.determineSmcBHandle();
     TestcaseData.getInstance()
         .setCodeChallenge(
             Hex.decodeHex("2cbe1bf1072302b0d9b11c37bba3799012877fa07eafffad7f4db5ecf1ebe842"));
-    konnektorGlueCode.authenticateExternally();
-    Assert.assertNotNull(TestcaseData.getInstance().getAuthenticatedData());
+    konnektorGlueCode.authenticateExternallySmcB();
+    Assert.assertNotNull(
+        TestcaseData.getInstance().getExternalAuthenticateResult().getAuthenticatedData());
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldPerformSignPrescription() throws MissingPreconditionException {
     InvocationContext invokationContext =
         new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, "12345678");
@@ -130,8 +128,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineJobNumber() throws MissingPreconditionException {
     konnektorGlueCode.determineJobNumber();
     String jobNumber = TestcaseData.getInstance().getJobNumber();
@@ -139,8 +136,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineContext() throws MissingPreconditionException {
     konnektorGlueCode.determineContext(
         new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER));
@@ -150,8 +146,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test(expected = MissingPreconditionException.class)
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineContextFail() throws MissingPreconditionException {
     konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, "", USER));
     InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
@@ -165,8 +160,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test(expected = MissingPreconditionException.class)
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldFailIsValidInvocationContext() throws MissingPreconditionException {
     konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, "", USER));
     InvocationContext inValidInvocationContext = TestcaseData.getInstance().getInvocationContext();
@@ -182,8 +176,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldVerifySignature()
       throws MissingPreconditionException, ParserConfigurationException, SAXException, IOException {
     TestcaseData testcaseData = TestcaseData.getInstance();
@@ -209,8 +202,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineUserIdSetExplicit() throws MissingPreconditionException {
     konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
     InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
@@ -224,8 +216,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineSignatureMode() throws MissingPreconditionException {
     konnektorGlueCode.determineHbaHandle();
     konnektorGlueCode.determineSignatureMode();
@@ -233,8 +224,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDeterminePinStatusQes() throws MissingPreconditionException {
 
     TestcaseData testcaseData = TestcaseData.getInstance();
@@ -248,8 +238,7 @@ public class KonnektorGlueCodeIntegrationTest {
   }
 
   @Test
-  @Ignore(
-      "Ist nur lauffähig, wenn de.gematik.rezeps.fdclient.ApplicationStarter gestartet wurde und eine Konnektor-Gegenstelle verfügbar ist.")
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
   public void shouldDetermineSignatureModeComfort() throws MissingPreconditionException {
     konnektorGlueCode.determineContext(
         new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER));
@@ -268,5 +257,57 @@ public class KonnektorGlueCodeIntegrationTest {
   public void shouldDetermineIPAddressFromFqdn() {
     konnektorGlueCode.getIPAddress("www.cloudflare.com");
     Assert.assertNotNull(TestcaseData.getInstance().getFdIpAddress());
+  }
+
+  @Test
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
+  public void shouldVerifyPin() throws MissingPreconditionException {
+    konnektorGlueCode.determineContext(
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER));
+    konnektorGlueCode.determineHbaHandle();
+    konnektorGlueCode.verifyPin();
+    Assert.assertNotNull(TestcaseData.getInstance().getVerifyPinResult());
+  }
+
+  @Test
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
+  public void shouldEjectCard() throws MissingPreconditionException {
+    konnektorGlueCode.determineContext(
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER));
+    konnektorGlueCode.determineHbaHandle();
+    konnektorGlueCode.ejectCard();
+    Assert.assertNotNull(TestcaseData.getInstance().getEjectCardResult());
+  }
+
+  @Test
+  @Ignore(
+      "Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist. Karte bei "
+          + "Testdurchführung nicht ziehen.")
+  public void shouldBeSoapFault4203WithEjectCard() throws MissingPreconditionException {
+    konnektorGlueCode.determineContext(
+        new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE, USER));
+    konnektorGlueCode.determineHbaHandle();
+    konnektorGlueCode.ejectCard();
+    EjectCardResult ejectCardResult = TestcaseData.getInstance().getEjectCardResult();
+    Assert.assertNotNull(ejectCardResult);
+    Assert.assertTrue(ejectCardResult.isSoapFault4203());
+  }
+
+  @Test
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
+  public void shouldDetermineCardTerminals() throws MissingPreconditionException {
+    konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
+    konnektorGlueCode.determineCardTerminals();
+    Assert.assertNotNull(TestcaseData.getInstance().getGetCardTerminalsResult());
+  }
+
+  @Test
+  @Ignore("Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist.")
+  public void shouldRequestCard() throws MissingPreconditionException {
+    konnektorGlueCode.determineContext(new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE));
+    konnektorGlueCode.determineCardTerminals();
+    String ctId = TestcaseData.getInstance().getGetCardTerminalsResult().getCtId();
+    konnektorGlueCode.requestCard(ctId, 1);
+    Assert.assertNotNull(TestcaseData.getInstance().getRequestCardResult());
   }
 }

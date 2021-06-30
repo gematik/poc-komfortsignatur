@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.gematik</groupId>
+        <artifactId>gematik-parent</artifactId>
+        <version>1.5.1</version>
+    </parent>
+
+    <artifactId>rezeps.parent</artifactId>
+    <version>poc_comfortsignature_0.2.0</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>rezeps.testsuite</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <!-- Test Coverage -->
+
+        <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+        <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
+        <sonar.language>java</sonar.language>
+        <version.jacoco>0.8.2</version.jacoco>
+        <version.sonar.jacoco.listener>5.0.1.12818</version.sonar.jacoco.listener>
+        <version.surefire>3.0.0-M2</version.surefire>
+        <version.surefire-report>3.0.0-M2</version.surefire-report>
+        <version.maven-source-plugin>3.0.1</version.maven-source-plugin>
+        <version.maven-javadoc-plugin>3.0.1</version.maven-javadoc-plugin>
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${project.basedir}/../rezeps.testsuite/target/site/jacoco-aggregate/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+    </properties>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${version.jacoco}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                            <configuration>
+                                <excludes>
+                                    <exclude>de.gematik.ws/**.*</exclude>
+                                    <exclude>oasis.names.tc/**.*</exclude>
+                                    <exclude>org/**.*</exclude>
+                                </excludes>
+                                <destfile>${sonar.jacoco.reportPaths}</destfile>
+                                <propertyName>surefireArgLine</propertyName>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>prepare-package</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <excludes>
+                                    <exclude>de.gematik.ws.**.*</exclude>
+                                    <exclude>oasis.names.tc.**.*</exclude>
+                                    <exclude>org.**.*</exclude>
+                                </excludes>
+                                <datafile>${sonar.jacoco.reportPaths}</datafile>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

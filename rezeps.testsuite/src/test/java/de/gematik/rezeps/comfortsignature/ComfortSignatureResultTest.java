@@ -16,10 +16,12 @@
 
 package de.gematik.rezeps.comfortsignature;
 
+import static de.gematik.rezeps.comfortsignature.ComfortSignatureResult.ERROR_TEXT_4018;
 import static de.gematik.rezeps.comfortsignature.ComfortSignatureResult.SIGNATURE_MODE_COMFORT;
 import static de.gematik.rezeps.comfortsignature.ComfortSignatureResult.STATUS_OK;
 import static org.junit.Assert.*;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public class ComfortSignatureResultTest {
@@ -56,5 +58,26 @@ public class ComfortSignatureResultTest {
     ComfortSignatureResult comfortSignatureResult =
         new ComfortSignatureResult(STATUS_OK, "not COMFORT");
     assertFalse(comfortSignatureResult.isComfortSignatureActivated());
+  }
+
+  @Test
+  public void shouldRecognizeSoapFault4018() {
+    ComfortSignatureResult comfortSignatureResult = new ComfortSignatureResult();
+    comfortSignatureResult.setSoapFault(ERROR_TEXT_4018);
+    Assert.assertTrue(comfortSignatureResult.isSoapFault4018());
+  }
+
+  @Test
+  public void shouldNotRecognizeSoapFault4018OnMissingSoapFault() {
+    ComfortSignatureResult comfortSignatureResult = new ComfortSignatureResult();
+    comfortSignatureResult.setSoapFault(null);
+    Assert.assertFalse(comfortSignatureResult.isSoapFault4018());
+  }
+
+  @Test
+  public void shouldNotRecognizeSoapFault4018OnDifferentSoapFault() {
+    ComfortSignatureResult comfortSignatureResult = new ComfortSignatureResult();
+    comfortSignatureResult.setSoapFault("Ungültige Mandanten-ID");
+    Assert.assertFalse(comfortSignatureResult.isSoapFault4018());
   }
 }

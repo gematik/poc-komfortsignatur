@@ -19,6 +19,7 @@ package de.gematik.rezeps.card;
 import de.gematik.ws.conn.cardservice.v8.PinStatusEnum;
 import de.gematik.ws.conn.cardservicecommon.v2.PinResultEnum;
 import de.gematik.ws.conn.connectorcommon.v5.Status;
+import java.io.Serializable;
 import java.math.BigInteger;
 
 /**
@@ -30,7 +31,9 @@ import java.math.BigInteger;
  *     pinStatusEnum {@link PinStatusEnum}
  * </pre>
  */
-public class PinStatusResult {
+public class PinStatusResult implements Serializable {
+
+  private static final long serialVersionUID = 4920119976436215464L;
 
   public PinStatusResult(Status status, BigInteger leftTries, PinStatusEnum pinStatusEnum) {
     this.status = status;
@@ -64,7 +67,7 @@ public class PinStatusResult {
     this.pinStatusEnum = pinStatusEnum;
   }
 
-  Status status;
+  transient Status status;
 
   /**
    * Gibt den {@link Status} zurück

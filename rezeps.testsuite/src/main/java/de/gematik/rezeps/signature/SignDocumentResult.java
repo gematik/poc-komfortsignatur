@@ -16,11 +16,12 @@
 
 package de.gematik.rezeps.signature;
 
+import java.io.Serializable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Repräsentiert das Ergebnis einer Signatur-Erstellung. */
-public class SignDocumentResult {
+public class SignDocumentResult implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SignDocumentResult.class);
 
@@ -29,6 +30,7 @@ public class SignDocumentResult {
   public static final String TYPE_BASE_64_SIGNATURE = "urn:ietf:rfc:5652";
 
   private static final boolean RESPONSE_VALID = true;
+  private static final long serialVersionUID = -7026986518818356677L;
 
   private String status;
   private String mimeTypeBase64Data;

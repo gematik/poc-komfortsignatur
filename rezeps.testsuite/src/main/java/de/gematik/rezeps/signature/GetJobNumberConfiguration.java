@@ -17,15 +17,20 @@
 package de.gematik.rezeps.signature;
 
 import de.gematik.rezeps.KonnektorHelper;
+import de.gematik.rezeps.SoapClientInterceptor;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.HashMap;
+import java.util.Map;
+import javax.xml.bind.Marshaller;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
+import org.springframework.ws.client.support.interceptor.ClientInterceptor;
 
 /**
  * Die Klasse wird von Spring-Boot für das Marshalling und Unmarshalling von SOAP-Nachrichten
@@ -39,7 +44,13 @@ public class GetJobNumberConfiguration {
     Jaxb2Marshaller marshaller = new Jaxb2Marshaller();
     // this package must match the package in the <generatePackage> specified in
     // pom.xml
-    marshaller.setContextPath(SignatureServiceHelper.CONTEXT);
+    marshaller.setPackagesToScan("de.gematik.ws.conn.signatureservice.v7_4");
+
+    Map<String, Object> map = new HashMap<>();
+    map.put(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+    map.put(Marshaller.JAXB_ENCODING, "UTF-8");
+    map.put(Marshaller.JAXB_FRAGMENT, true);
+    marshaller.setMarshallerProperties(map);
     return marshaller;
   }
 
@@ -47,12 +58,18 @@ public class GetJobNumberConfiguration {
   public PerformGetJobNumber performGetJobNumber(Jaxb2Marshaller signDocumentMarshaller)
       throws IOException, UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException,
           KeyStoreException, KeyManagementException {
-    PerformGetJobNumber client = new PerformGetJobNumber();
-    client.setDefaultUri(KonnektorHelper.determineSignatureServiceEndpoint());
-    client.setMarshaller(signDocumentMarshaller);
-    client.setUnmarshaller(signDocumentMarshaller);
+    PerformGetJobNumber performGetJobNumber = new PerformGetJobNumber();
+    performGetJobNumber.setDefaultUri(KonnektorHelper.determineSignatureServiceEndpoint());
+    performGetJobNumber.setMarshaller(signDocumentMarshaller);
+    performGetJobNumber.setUnmarshaller(signDocumentMarshaller);
     // hier wird der MessageSender für TLS mit beidseitiger Authentisierung gesetzt
-    client.setMessageSender(KonnektorHelper.determineHttpComponentsMessageSender());
-    return client;
+    performGetJobNumber.setMessageSender(KonnektorHelper.determineHttpComponentsMessageSender());
+    performGetJobNumber.setInterceptors(new ClientInterceptor[] {interceptor()});
+    return performGetJobNumber;
+  }
+
+  @Bean
+  public SoapClientInterceptor interceptor() {
+    return new SoapClientInterceptor();
   }
 }

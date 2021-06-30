@@ -16,9 +16,12 @@
 
 package de.gematik.rezeps.bundle;
 
-/** Container für Daten eines Patienten. */
-public class Patient {
+import java.io.Serializable;
 
+/** Container für Daten eines Patienten. */
+public class Patient implements Serializable {
+
+  private static final long serialVersionUID = 1852266335540902543L;
   private String givenName;
   private String surname;
   private String kvnr;
@@ -28,7 +31,7 @@ public class Patient {
   private String city;
   private String birthday;
 
-  public Patient(
+  public Patient( // NOSONAR
       String givenName,
       String surname,
       String kvnr,

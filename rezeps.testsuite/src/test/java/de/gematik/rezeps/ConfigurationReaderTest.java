@@ -17,8 +17,9 @@
 package de.gematik.rezeps;
 
 import java.io.IOException;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConfigurationReaderTest {
 
@@ -41,6 +42,20 @@ public class ConfigurationReaderTest {
   private static final String EXPECTED_KONNEKTOR_CARD_SERVICE_ENDPOINT = "/cardservice";
   private static final String EXPECTED_KONNEKTOR_CARD_TERMINAL_SERVICE_ENDPOINT =
       "/cardterminalservice";
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationReaderTest.class);
+
+  @BeforeClass
+  public static void beforeClass() {
+    LOGGER.info(
+        "Set environment to use configuration.unittest.properties file (preventing build failure on other configurations)");
+    System.setProperty("CFG_PROPS", "unittest");
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    LOGGER.info("Cleanup environment");
+    System.clearProperty("CFG_PROPS");
+  }
 
   @Test
   public void shouldDetermineKonnektorIp() throws IOException {

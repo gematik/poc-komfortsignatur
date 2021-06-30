@@ -21,7 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import de.gematik.rezeps.bundle.Coverage;
 import de.gematik.rezeps.bundle.Medication;
 import de.gematik.rezeps.bundle.Patient;
-import de.gematik.rezeps.dataexchange.create.TaskCreateData;
+import de.gematik.rezeps.dataexchange.TaskCreateData;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

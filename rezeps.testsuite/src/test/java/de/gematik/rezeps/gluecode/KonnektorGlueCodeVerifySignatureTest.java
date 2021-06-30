@@ -20,7 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.gematik.rezeps.InvocationContext;
-import de.gematik.rezeps.signature.SignDocumentResult;
+import de.gematik.rezeps.dataexchange.TaskAcceptData;
 import de.gematik.rezeps.signature.SignatureVerification;
 import de.gematik.rezeps.signature.SignatureVerificationResult;
 import java.io.IOException;
@@ -64,14 +64,11 @@ public class KonnektorGlueCodeVerifySignatureTest {
     when(signatureVerification.verifySignature(invocationContext, SIGNED_PRESCRIPTION))
         .thenReturn(signatureVerificationResult);
 
+    TaskAcceptData taskAcceptData = mock(TaskAcceptData.class);
+    when(taskAcceptData.getSignedPrescription()).thenReturn(SIGNED_PRESCRIPTION);
+
     TestcaseData testcaseData = TestcaseData.getInstance();
-    SignDocumentResult signDocumentResult =
-        new SignDocumentResult(
-            SignDocumentResult.STATUS_OK,
-            SignDocumentResult.MIME_TYPE_BASE_64_DATA,
-            SignDocumentResult.MIME_TYPE_BASE_64_DATA,
-            SIGNED_PRESCRIPTION);
-    testcaseData.setSignDocumentResult(signDocumentResult);
+    testcaseData.setTaskAcceptData(taskAcceptData);
     konnektorGlueCode.verifySignature();
     Assert.assertEquals(signatureVerificationResult, testcaseData.getSignatureVerificationResult());
   }
@@ -88,7 +85,7 @@ public class KonnektorGlueCodeVerifySignatureTest {
     when(beanFactory.getBean(SignatureVerification.class)).thenReturn(signatureVerification);
     when(connfigurableApplicationContext.getBeanFactory()).thenReturn(beanFactory);
 
-    TestcaseData.getInstance().setSignDocumentResult(null);
+    TestcaseData.getInstance().setTaskAcceptData(null);
     konnektorGlueCode.verifySignature();
   }
 

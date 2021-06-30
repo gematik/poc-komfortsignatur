@@ -16,20 +16,22 @@
 
 package de.gematik.rezeps.signature;
 
+import java.io.Serializable;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Prüfung ob ein Verordnungsdatensatz erfolgreich signiert werden konnte. */
-public class SignatureVerificationResult {
+public class SignatureVerificationResult implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SignatureVerificationResult.class);
 
   private static final String STATUS_OK = "OK";
   private static final String HIGH_LEVEL_RESULT_VALID = "VALID";
+  private static final long serialVersionUID = 6180160820113790970L;
 
-  private String status;
-  private String highLevelResult;
+  private final String status;
+  private final String highLevelResult;
 
   public SignatureVerificationResult(String status, String highLevelResult) {
     this.status = status;
@@ -45,14 +47,14 @@ public class SignatureVerificationResult {
   public boolean isValidSignature() {
     boolean isValidSignature = true;
 
-    boolean statusIsOk = status != null && status.equals(STATUS_OK) ? true : false;
+    boolean statusIsOk = status != null && status.equals(STATUS_OK);
     LOGGER.info("Der Status der Response lautet {}", status);
     if (!statusIsOk) {
       isValidSignature = false;
     }
 
     boolean highLevelResultIsValid =
-        highLevelResult != null && highLevelResult.equals(HIGH_LEVEL_RESULT_VALID) ? true : false;
+        highLevelResult != null && highLevelResult.equals(HIGH_LEVEL_RESULT_VALID);
     LOGGER.info("Das High Level Result lautet {}", highLevelResult);
     if (!highLevelResultIsValid) {
       isValidSignature = false;

@@ -38,7 +38,6 @@ public class KonnektorHelper {
   private static final String[] SUPPORTED_PROTOCOLS = new String[] {"TLSv1.2"};
   private static final String[] SUPPORTED_CIPHER_SUITES =
       new String[] {"TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA"};
-  public static final String STRING_PROTOKOLL_HTTPS = "https://";
 
   private KonnektorHelper() {}
 
@@ -48,14 +47,18 @@ public class KonnektorHelper {
    * @return Konnektor-Endpunkt des EventService.
    */
   public static String determineEventServiceEndpoint() throws IOException {
-    return STRING_PROTOKOLL_HTTPS
-        + determineKonnektorEndpoint()
+    return determineKonnektorEndpoint()
         + ConfigurationReader.getInstance().getKonnektorEventServiceEndpoint();
   }
 
   private static String determineKonnektorEndpoint() throws IOException {
     ConfigurationReader configurationReader = ConfigurationReader.getInstance();
-    return configurationReader.getKonnektorIp() + ":" + configurationReader.getKonnektorPort();
+    StringBuilder stringBuilder = new StringBuilder();
+    stringBuilder.append(configurationReader.getProtokoll());
+    stringBuilder.append(configurationReader.getKonnektorIp());
+    stringBuilder.append(":");
+    stringBuilder.append(configurationReader.getKonnektorPort());
+    return stringBuilder.toString();
   }
 
   /**
@@ -64,8 +67,7 @@ public class KonnektorHelper {
    * @return Konnektor-Endpunkt des Signaturdienstes.
    */
   public static String determineSignatureServiceEndpoint() throws IOException {
-    return STRING_PROTOKOLL_HTTPS
-        + determineKonnektorEndpoint()
+    return determineKonnektorEndpoint()
         + ConfigurationReader.getInstance().getKonnektorSignatureServiceEndpoint();
   }
 
@@ -75,8 +77,7 @@ public class KonnektorHelper {
    * @return Konnektor-Endpunkt des AuthSignatureService.
    */
   public static String determineAuthSignatureServiceEndpoint() throws IOException {
-    return STRING_PROTOKOLL_HTTPS
-        + determineKonnektorEndpoint()
+    return determineKonnektorEndpoint()
         + ConfigurationReader.getInstance().getKonnektorAuthSignatureServiceEndpoint();
   }
   /**
@@ -85,8 +86,7 @@ public class KonnektorHelper {
    * @return Konnektor-Endpunkt des CardService.
    */
   public static String determineCardServiceEndpoint() throws IOException {
-    return STRING_PROTOKOLL_HTTPS
-        + determineKonnektorEndpoint()
+    return determineKonnektorEndpoint()
         + ConfigurationReader.getInstance().getKonnektorCardServiceEndpoint();
   }
 
@@ -97,8 +97,7 @@ public class KonnektorHelper {
    * @throws IOException, wenn dieser nicht bestimmt werden kann
    */
   public static String determineCardTerminalServiceEndpoint() throws IOException {
-    return STRING_PROTOKOLL_HTTPS
-        + determineKonnektorEndpoint()
+    return determineKonnektorEndpoint()
         + ConfigurationReader.getInstance().getKonnektorCardTerminalServiceEndpoint();
   }
 
@@ -108,8 +107,7 @@ public class KonnektorHelper {
    * @return Konnektor-Endpunkt des Zertifikatsdienstes.
    */
   public static String determineCertificateServiceEndpoint() throws IOException {
-    return STRING_PROTOKOLL_HTTPS
-        + determineKonnektorEndpoint()
+    return determineKonnektorEndpoint()
         + ConfigurationReader.getInstance().getKonnektorCertificateServiceEndpoint();
   }
 

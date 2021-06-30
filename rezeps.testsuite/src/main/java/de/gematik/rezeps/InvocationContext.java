@@ -18,10 +18,12 @@ package de.gematik.rezeps;
 
 import de.gematik.rezeps.util.CommonUtils;
 import de.gematik.ws.conn.connectorcontext.v2.ContextType;
+import java.io.Serializable;
 
 /** Repräsentiert einen Aufrufkontext */
-public class InvocationContext {
+public class InvocationContext implements Serializable {
 
+  private static final long serialVersionUID = -3118553804984148873L;
   private String mandant;
   private String clientSystem;
   private String workplace;

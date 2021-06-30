@@ -16,8 +16,11 @@
 
 package de.gematik.rezeps.bundle;
 
-public class Medication {
+import java.io.Serializable;
 
+public class Medication implements Serializable {
+
+  private static final long serialVersionUID = -5058085280525379689L;
   private String pznValue;
   private String pznText;
 

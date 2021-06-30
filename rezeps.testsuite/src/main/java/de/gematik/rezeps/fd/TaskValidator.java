@@ -16,10 +16,10 @@
 
 package de.gematik.rezeps.fd;
 
-import de.gematik.rezeps.dataexchange.create.TaskAcceptData;
-import de.gematik.rezeps.dataexchange.create.TaskActivateData;
-import de.gematik.rezeps.dataexchange.create.TaskCloseData;
-import de.gematik.rezeps.dataexchange.create.TaskCreateData;
+import de.gematik.rezeps.dataexchange.TaskAcceptData;
+import de.gematik.rezeps.dataexchange.TaskActivateData;
+import de.gematik.rezeps.dataexchange.TaskCloseData;
+import de.gematik.rezeps.dataexchange.TaskCreateData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -67,12 +67,9 @@ public class TaskValidator {
     }
 
     LOGGER.info(STATUS, taskCreateData.getStatus());
-    if (StringUtils.isEmpty(taskCreateData.getStatus())
-        || !taskCreateData.getStatus().equals(STATUS_DRAFT)) {
-      return false;
-    }
 
-    return true;
+    return !StringUtils.isEmpty(taskCreateData.getStatus())
+        && taskCreateData.getStatus().equals(STATUS_DRAFT);
   }
 
   /**
@@ -89,12 +86,8 @@ public class TaskValidator {
     }
 
     LOGGER.info(STATUS, taskActivateData.getStatus());
-    if (StringUtils.isEmpty(taskActivateData.getStatus())
-        || !taskActivateData.getStatus().equals(STATUS_READY)) {
-      return false;
-    }
-
-    return true;
+    return !StringUtils.isEmpty(taskActivateData.getStatus())
+        && taskActivateData.getStatus().equals(STATUS_READY);
   }
 
   /**

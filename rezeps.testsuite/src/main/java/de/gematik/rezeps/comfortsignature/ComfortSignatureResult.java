@@ -16,14 +16,24 @@
 
 package de.gematik.rezeps.comfortsignature;
 
+import de.gematik.rezeps.util.CommonUtils;
+import java.io.Serializable;
+import java.util.Objects;
+
 /** Repräsentiert das Ergebnis eines Aufrufs von ActivateComfortSignature beim Konnektor. */
-public class ComfortSignatureResult {
+public class ComfortSignatureResult implements Serializable {
 
   public static final String STATUS_OK = "OK";
   public static final String SIGNATURE_MODE_COMFORT = "COMFORT";
+  public static final String ERROR_TEXT_4018 =
+      "Der HBAx hat mindestens eine Kartensitzung zu "
+          + "einer anderen UserId, deren Sicherheitszustand erhöht ist.";
+
+  private static final long serialVersionUID = -7208198436753516793L;
 
   private String status;
   private String signatureMode;
+  private String soapFault;
 
   public ComfortSignatureResult() {}
 
@@ -46,6 +56,33 @@ public class ComfortSignatureResult {
 
   public void setSignatureMode(String signatureMode) {
     this.signatureMode = signatureMode;
+  }
+
+  public String getSoapFault() {
+    return soapFault;
+  }
+
+  public void setSoapFault(String soapFault) {
+    this.soapFault = soapFault;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ComfortSignatureResult that = (ComfortSignatureResult) o;
+    return Objects.equals(status, that.status)
+        && Objects.equals(signatureMode, that.signatureMode)
+        && Objects.equals(soapFault, that.soapFault);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(status, signatureMode, soapFault);
   }
 
   /**
@@ -75,5 +112,16 @@ public class ComfortSignatureResult {
     return ((status != null)
         && (!SIGNATURE_MODE_COMFORT.equalsIgnoreCase(signatureMode))
         && (status.equals(STATUS_OK)));
+  }
+
+  /**
+   * Prüft, ob die letzte Ausführung von ActivateComfortSignature mit dem SOAP-Fault 4018
+   * beantwortet wurde.
+   *
+   * @return true, wenn die letzte Ausführung von ActivateComfortSignature mit dem SOAP-Fault 4018
+   *     beantwortet wurde, andernfalls false.
+   */
+  public boolean isSoapFault4018() {
+    return !CommonUtils.isNullOrEmpty(soapFault) && soapFault.equals(ERROR_TEXT_4018);
   }
 }

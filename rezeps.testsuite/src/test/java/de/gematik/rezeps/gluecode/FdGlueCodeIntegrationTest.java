@@ -16,39 +16,43 @@
 
 package de.gematik.rezeps.gluecode;
 
-import de.gematik.rezeps.dataexchange.create.TaskCreateData;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
+import de.gematik.rezeps.dataexchange.TaskCreateData;
+import de.gematik.rezeps.util.CommonUtils;
+import de.gematik.test.logger.TestNGLogManager;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 public class FdGlueCodeIntegrationTest {
 
+  static {
+    TestNGLogManager.useTestNGLogger = false;
+  }
+
   @Test
-  @Ignore
-  public void shouldInvokeTaskCreate() throws RemoteException, NotBoundException {
+  @Ignore(
+      "Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist. (Karte muss gesteckt sein)")
+  public void shouldInvokeTaskCreate() {
     FdClientGlueCode fdClientGlueCode = new FdClientGlueCode();
     fdClientGlueCode.invokeTaskCreate();
     TaskCreateData taskCreateData = TestcaseData.getInstance().getTaskCreateData();
-    Assert.assertNotNull("TaskData sollte verfügbar sein");
+    Assert.assertNotNull("TaskData sollte verfügbar sein", taskCreateData);
     String taskId = taskCreateData.getTaskId();
     String prescriptionId = taskCreateData.getPrescriptionId();
     String accessCode = taskCreateData.getAccessCode();
     Assert.assertEquals("Der Status Codes sollte 201 sein", 201, taskCreateData.getStatusCode());
-    Assert.assertTrue("Eine TaskID sollte vorhanden sein.", hasValue(taskId));
-    Assert.assertTrue("Eine PrescriptionID sollte vorhanden sein.", hasValue(prescriptionId));
-    Assert.assertTrue("Ein AccessCode sollte vorhanden sein.", hasValue(accessCode));
+    Assert.assertFalse("Eine TaskID sollte vorhanden sein.", CommonUtils.isNullOrEmpty(taskId));
+    Assert.assertFalse(
+        "Eine PrescriptionID sollte vorhanden sein.", CommonUtils.isNullOrEmpty(prescriptionId));
+    Assert.assertFalse(
+        "Ein AccessCode sollte vorhanden sein.", CommonUtils.isNullOrEmpty(accessCode));
     Assert.assertEquals("Der Status sollte draft sein", "draft", taskCreateData.getStatus());
   }
 
-  private boolean hasValue(String string) {
-    return string != null && string.length() > 0;
-  }
-
   @Test
-  @Ignore
-  public void shouldCheckTaskCreatedOk() throws RemoteException, NotBoundException {
+  @Ignore(
+      "Ist nur lauffähig, wenn eine Konnektor-Gegenstelle verfügbar ist. (Karte muss gesteckt sein)")
+  public void shouldCheckTaskCreatedOk() {
     FdClientGlueCode fdClientGlueCode = new FdClientGlueCode();
     fdClientGlueCode.invokeTaskCreate();
     Assert.assertTrue(fdClientGlueCode.checkTaskCreatedOk());

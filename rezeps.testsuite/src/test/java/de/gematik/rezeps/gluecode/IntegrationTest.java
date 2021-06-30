@@ -18,10 +18,7 @@ package de.gematik.rezeps.gluecode;
 
 import de.gematik.rezeps.InvocationContext;
 import de.gematik.rezeps.KonnektorClient;
-import de.gematik.rezeps.dataexchange.create.MedicationData;
 import java.io.IOException;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -30,9 +27,8 @@ import org.springframework.boot.SpringApplication;
 public class IntegrationTest {
 
   @Test
-  @Ignore
-  public void shouldInvokeTaskActivate()
-      throws IOException, NotBoundException, MissingPreconditionException {
+  @Ignore("Nur lauffähig, wenn FD erreichbar")
+  public void shouldInvokeTaskActivate() throws IOException, MissingPreconditionException {
     FdClientGlueCode fdClientGlueCode = new FdClientGlueCode();
     invokeTaskActivate(fdClientGlueCode);
     Assert.assertTrue(fdClientGlueCode.checkTaskActivateOk());
@@ -57,9 +53,8 @@ public class IntegrationTest {
   }
 
   @Test
-  @Ignore
-  public void shouldInvokeTaskAccept()
-      throws RemoteException, NotBoundException, MissingPreconditionException {
+  @Ignore("Nur lauffähig, wenn FD erreichbar")
+  public void shouldInvokeTaskAccept() throws MissingPreconditionException {
     FdClientGlueCode fdClientGlueCode = new FdClientGlueCode();
     invokeTaskActivate(fdClientGlueCode);
 
@@ -68,15 +63,13 @@ public class IntegrationTest {
   }
 
   @Test
-  @Ignore
-  public void shouldInvokeTaskClose()
-      throws RemoteException, NotBoundException, MissingPreconditionException {
+  @Ignore("Nur lauffähig, wenn FD erreichbar")
+  public void shouldInvokeTaskClose() throws MissingPreconditionException {
     FdClientGlueCode fdClientGlueCode = new FdClientGlueCode();
     invokeTaskActivate(fdClientGlueCode);
 
     fdClientGlueCode.invokeTaskAccept();
-    fdClientGlueCode.invokeTaskClose(
-        new MedicationData("06313728", "Sumatriptan-1a Pharma 100 mg Tabletten"));
+    fdClientGlueCode.invokeTaskClose();
     Assert.assertNotNull(TestcaseData.getInstance().getTaskCloseData());
   }
 }

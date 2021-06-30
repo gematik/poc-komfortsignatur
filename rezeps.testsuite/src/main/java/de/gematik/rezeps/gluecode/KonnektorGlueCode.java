@@ -18,7 +18,7 @@ package de.gematik.rezeps.gluecode;
 
 import de.gematik.rezeps.ConfigurationReader;
 import de.gematik.rezeps.InvocationContext;
-import de.gematik.rezeps.UserIdHelper;
+import de.gematik.rezeps.authentication.ExternalAuthenticateResult;
 import de.gematik.rezeps.authentication.ExternalAuthenticator;
 import de.gematik.rezeps.bundle.BundleHelper;
 import de.gematik.rezeps.bundle.Coverage;
@@ -27,12 +27,21 @@ import de.gematik.rezeps.bundle.Patient;
 import de.gematik.rezeps.card.CardHandleFinder;
 import de.gematik.rezeps.card.PinStatus;
 import de.gematik.rezeps.card.PinStatusResult;
+import de.gematik.rezeps.card.PinVerifier;
+import de.gematik.rezeps.card.VerifyPinResult;
+import de.gematik.rezeps.cardterminal.CardEjector;
+import de.gematik.rezeps.cardterminal.CardRequestor;
+import de.gematik.rezeps.cardterminal.CardTerminalsGetter;
+import de.gematik.rezeps.cardterminal.EjectCardResult;
+import de.gematik.rezeps.cardterminal.GetCardTerminalsResult;
+import de.gematik.rezeps.cardterminal.RequestCardResult;
 import de.gematik.rezeps.certificate.CardCertificateReader;
 import de.gematik.rezeps.comfortsignature.ComfortSignatureActivator;
 import de.gematik.rezeps.comfortsignature.ComfortSignatureDeactivator;
 import de.gematik.rezeps.comfortsignature.ComfortSignatureResult;
 import de.gematik.rezeps.comfortsignature.SignatureModeGetter;
-import de.gematik.rezeps.dataexchange.create.TaskCreateData;
+import de.gematik.rezeps.dataexchange.TaskAcceptData;
+import de.gematik.rezeps.dataexchange.TaskCreateData;
 import de.gematik.rezeps.service.IPUtil;
 import de.gematik.rezeps.signature.JobNumberFinder;
 import de.gematik.rezeps.signature.PrescriptionSigner;
@@ -99,6 +108,26 @@ public class KonnektorGlueCode {
       LOGGER.error(exception.getMessage(), exception);
     }
   }
+  /**
+   * Bestimmt das Handle des im Testfall verwendeten <b>bestimmten</b> HBAs und stellt dieses für
+   * weitere Testschritte im Objekt TestcaseData zur Verfügung.
+   *
+   * @param iccsn die ICCSN der Karte
+   */
+  public void determineHbaHandle(String iccsn) throws MissingPreconditionException {
+    try {
+      InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
+      checkInvocationContext(invocationContext);
+
+      CardHandleFinder cardHandleFinder =
+          applicationContext.getBeanFactory().getBean(CardHandleFinder.class);
+      String cardHandle = cardHandleFinder.determineHbaHandle(invocationContext, iccsn);
+      TestcaseData.getInstance().setHbaHandle(cardHandle);
+      LOGGER.info("Got HBA handle: {}", cardHandle);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
 
   /**
    * Bestimmt das Handle der im Testfall verwendeten SMC-B und stellt dieses für weitere
@@ -112,6 +141,95 @@ public class KonnektorGlueCode {
       CardHandleFinder cardHandleFinder =
           applicationContext.getBeanFactory().getBean(CardHandleFinder.class);
       String cardHandle = cardHandleFinder.determineSmcBHandle(invocationContext);
+      TestcaseData.getInstance().setSmcBHandle(cardHandle);
+      LOGGER.info("Got SMC-B handle: {}", cardHandle);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Bestimmt das Handle der im Testfall verwendeten ZOD_2_0 und stellt dieses für weitere
+   * Testschritte im Objekt TestcaseData zur Verfügung.
+   *
+   * @param iccsn
+   */
+  public void determineZOD20Handle(String iccsn) throws MissingPreconditionException {
+    try {
+      InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
+      checkInvocationContext(invocationContext);
+
+      CardHandleFinder cardHandleFinder =
+          applicationContext.getBeanFactory().getBean(CardHandleFinder.class);
+      String cardHandle = null;
+      if (!CommonUtils.isNullOrEmpty(iccsn)) {
+        cardHandle = cardHandleFinder.determineZOD20Handle(invocationContext, iccsn);
+      } else {
+        cardHandle = cardHandleFinder.determineZOD20Handle(invocationContext);
+      }
+      TestcaseData.getInstance().setHbaHandle(cardHandle);
+      LOGGER.info("Got ZOD_2_0 handle: {}", cardHandle);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Bestimmt das Handle der im Testfall verwendeten ZOD_2_0 und stellt dieses für weitere
+   * Testschritte im Objekt TestcaseData zur Verfügung.
+   */
+  public void determineZOD20Handle() throws MissingPreconditionException {
+    determineZOD20Handle(null);
+  }
+
+  /**
+   * Bestimmt das Handle der im Testfall verwendeten ZOD_2_0 und stellt dieses für weitere
+   * Testschritte im Objekt TestcaseData zur Verfügung.
+   *
+   * @param iccsn die ICCSN der Karte
+   */
+  public void determineHBAqSigHandle(String iccsn) throws MissingPreconditionException {
+    try {
+      InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
+      checkInvocationContext(invocationContext);
+
+      CardHandleFinder cardHandleFinder =
+          applicationContext.getBeanFactory().getBean(CardHandleFinder.class);
+      String cardHandle = null;
+      if (CommonUtils.isNullOrEmpty(iccsn)) {
+        cardHandle = cardHandleFinder.determineHBAQSigHandle(invocationContext);
+      } else {
+        cardHandle = cardHandleFinder.determineHBAQSigHandle(invocationContext, iccsn);
+      }
+      TestcaseData.getInstance().setHbaHandle(cardHandle);
+      LOGGER.info("Got HBA_Q_SIG handle: {}", cardHandle);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Bestimmt das Handle der im Testfall verwendeten ZOD_2_0 und stellt dieses für weitere
+   * Testschritte im Objekt TestcaseData zur Verfügung.
+   */
+  public void determineHBAqSigHandle() throws MissingPreconditionException {
+    determineHBAqSigHandle(null);
+  }
+
+  /**
+   * Bestimmt das Handle der im Testfall verwendeten <b>bestimmten</b> SMC-B und stellt dieses für
+   * weitere Testschritte im Objekt TestcaseData zur Verfügung.
+   *
+   * @param iccsn die ICCSN der Karte
+   */
+  public void determineSmcBHandle(String iccsn) throws MissingPreconditionException {
+    try {
+      InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
+      checkInvocationContext(invocationContext);
+
+      CardHandleFinder cardHandleFinder =
+          applicationContext.getBeanFactory().getBean(CardHandleFinder.class);
+      String cardHandle = cardHandleFinder.determineSmcBHandle(invocationContext, iccsn);
       TestcaseData.getInstance().setSmcBHandle(cardHandle);
       LOGGER.info("Got SMC-B handle: {}", cardHandle);
     } catch (IOException exception) {
@@ -195,16 +313,15 @@ public class KonnektorGlueCode {
     try {
       SignatureVerification signatureVerification =
           applicationContext.getBeanFactory().getBean(SignatureVerification.class);
-      SignDocumentResult signDocumentResult = TestcaseData.getInstance().getSignDocumentResult();
-      if (signDocumentResult == null) {
-        throw new MissingPreconditionException(
-            "Es liegt kein signierter Verordnungsdatensatz vor.");
+      TaskAcceptData taskAcceptData = TestcaseData.getInstance().getTaskAcceptData();
+      if (taskAcceptData == null) {
+        throw new MissingPreconditionException("Es liegt kein E-Rezept Datensatz vor.");
       }
       InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
       checkInvocationContext(invocationContext);
       SignatureVerificationResult signatureVerificationResult =
           signatureVerification.verifySignature(
-              invocationContext, signDocumentResult.getSignedBundle());
+              invocationContext, taskAcceptData.getSignedPrescription());
       TestcaseData.getInstance().setSignatureVerificationResult(signatureVerificationResult);
     } catch (IOException exception) {
       LOGGER.error(exception.getMessage(), exception);
@@ -219,6 +336,8 @@ public class KonnektorGlueCode {
    */
   public void modifyBundleWithPatientData(Patient patient) {
     try {
+      TestcaseData.getInstance().setPatient(patient);
+
       BundleHelper bundle = determineBundle();
       bundle.initializePatientData(patient);
     } catch (IOException
@@ -267,6 +386,8 @@ public class KonnektorGlueCode {
    */
   public void modifyBundleWithMedicationData(Medication medication) {
     try {
+      TestcaseData.getInstance().setMedication(medication);
+
       BundleHelper bundle = determineBundle();
       bundle.initializeMedicationData(medication);
     } catch (IOException
@@ -392,11 +513,13 @@ public class KonnektorGlueCode {
   }
 
   /**
-   * Signiert die code_challenge mittels der Operation ExternalAuthenticate des Konnektors.
+   * Signiert die code_challenge mittels der Operation ExternalAuthenticate des Konnektors und einer
+   * SMC-B.
    *
-   * @throws MissingPreconditionException Wenn kein CardHandle oder keine code_challenge vorliegen.
+   * @throws MissingPreconditionException Wenn kein CardHandle einer SMC-B oder keine code_challenge
+   *     vorliegen.
    */
-  public void authenticateExternally() throws MissingPreconditionException {
+  public void authenticateExternallySmcB() throws MissingPreconditionException {
     TestcaseData testcaseData = TestcaseData.getInstance();
 
     InvocationContext invocationContext = testcaseData.getInvocationContext();
@@ -404,6 +527,30 @@ public class KonnektorGlueCode {
 
     checkSmcBHandle();
 
+    authenticateExternally(invocationContext, testcaseData.getSmcBHandle());
+  }
+
+  /**
+   * Signiert die code_challenge mittels der Operation ExternalAuthenticate des Konnektors und einem
+   * HBA.
+   *
+   * @throws MissingPreconditionException Wenn kein CardHandle eines HBA oder keine code_challenge
+   *     vorliegen.
+   */
+  public void authenticateExternallyHba() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+
+    InvocationContext invocationContext = testcaseData.getInvocationContext();
+    checkInvocationContext(invocationContext);
+
+    checkHbaHandle();
+
+    authenticateExternally(invocationContext, testcaseData.getHbaHandle());
+  }
+
+  private void authenticateExternally(InvocationContext invocationContext, String cardHandle)
+      throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
     byte[] codeChallenge = testcaseData.getCodeChallenge();
     if (codeChallenge == null || codeChallenge.length == 0) {
       throw new MissingPreconditionException("Es liegt keine code_challenge vor.");
@@ -412,11 +559,11 @@ public class KonnektorGlueCode {
     try {
       ExternalAuthenticator externalAuthenticator =
           applicationContext.getBeanFactory().getBean(ExternalAuthenticator.class);
-      byte[] authenticatedData =
+      ExternalAuthenticateResult externalAuthenticateResult =
           externalAuthenticator.authenticateExternally(
-              invocationContext, testcaseData.getSmcBHandle(), codeChallenge);
+              invocationContext, cardHandle, codeChallenge);
 
-      testcaseData.setAuthenticatedData(authenticatedData);
+      testcaseData.setExternalAuthenticateResult(externalAuthenticateResult);
     } catch (IOException exception) {
       LOGGER.error(exception.getMessage(), exception);
     }
@@ -475,14 +622,6 @@ public class KonnektorGlueCode {
     checkInvocationContext(invocationContext);
     String userId = UUID.randomUUID().toString();
     invocationContext.setUser(userId);
-    try {
-      UserIdHelper.writeUserIdToFile(userId);
-    } catch (IOException exception) {
-      LOGGER.error(
-          MessageFormat.format(
-              "Die UserID konnte nicht persistiert werden: {0}", exception.getMessage()),
-          exception);
-    }
   }
 
   /**
@@ -494,19 +633,11 @@ public class KonnektorGlueCode {
     InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
     // auslösen der MissingPreconditionException falls der Aufrufkontext nicht valid ist
     checkInvocationContext(invocationContext);
-    String userId = null;
-    try {
-      userId = UserIdHelper.readUserIdFromFile();
-    } catch (IOException exception) {
-      LOGGER.error(
-          MessageFormat.format(
-              "Die UserID konnte nicht ausgelesen werden: {0}", exception.getMessage()),
-          exception);
-    }
+    String userId = invocationContext.getUser();
     if (CommonUtils.isNullOrEmpty(userId)) {
-      throw new MissingPreconditionException("Es steht keine UserID zur Verfügung.");
+      throw new MissingPreconditionException(
+          "Es steht keine UserID zur Verfügung. Eventuell muss der Testschritt \"PS erstellt neue UserID\" aufgerufen werden.");
     }
-    invocationContext.setUser(userId);
   }
 
   /** Aktiviert die Komfortsignatur für einen HBA. */
@@ -534,13 +665,29 @@ public class KonnektorGlueCode {
    * @return true, falls die Komfortsignatur erfolgreich aktiviert werden konnte, andernfalls false.
    */
   public boolean isActivateComfortSignatureOk() throws MissingPreconditionException {
+    ComfortSignatureResult comfortSignatureResult = isComfortSignatureResultAvailable();
+    return comfortSignatureResult.isComfortSignatureActivated();
+  }
+
+  private ComfortSignatureResult isComfortSignatureResultAvailable()
+      throws MissingPreconditionException {
     ComfortSignatureResult comfortSignatureResult =
         TestcaseData.getInstance().getActivateComfortSignatureResult();
     if (comfortSignatureResult == null) {
       throw new MissingPreconditionException(
           "Es liegt kein Ergebnis der Operation ActivateComfortSignature vor");
     }
-    return comfortSignatureResult.isComfortSignatureActivated();
+    return comfortSignatureResult;
+  }
+  /**
+   * Prüft, ob der letzte Aufruf von ActivateComfortSignature mit Fehler 4018 beantwortet wurde.
+   *
+   * @return true, falls der letzte Aufruf von ActivateComfortSignature mit Fehler 4018 beantwortet
+   *     wurde, andernfalls false.
+   */
+  public boolean isActivateComfortSignatureSoapFault4018() throws MissingPreconditionException {
+    ComfortSignatureResult comfortSignatureResult = isComfortSignatureResultAvailable();
+    return comfortSignatureResult.isSoapFault4018();
   }
 
   /**
@@ -748,9 +895,263 @@ public class KonnektorGlueCode {
     try {
       ipAddress = IPUtil.getIpAddress(fqdn);
       TestcaseData.getInstance().setFdIpAddress(ipAddress);
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info(MessageFormat.format("Resolved IP: {0} for \"{1}\"", ipAddress, fqdn));
+      }
     } catch (IOException exception) {
       LOGGER.error(exception.getMessage(), exception);
     }
     return ipAddress;
+  }
+
+  /**
+   * Schaltet die die PIN.CH eines HBAs frei.
+   *
+   * @throws MissingPreconditionException Falls im Testablauf zuvor kein Aufrufkontext oder
+   *     HBA-Handle bestimmt wurde.
+   */
+  public void verifyPin() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = testcaseData.getInvocationContext();
+    checkInvocationContext(invocationContext);
+    checkHbaHandle();
+    try {
+      PinVerifier pinVerifier = applicationContext.getBeanFactory().getBean(PinVerifier.class);
+      VerifyPinResult verifyPinResult =
+          pinVerifier.performVerifyPin(invocationContext, testcaseData.getHbaHandle());
+      testcaseData.setVerifyPinResult(verifyPinResult);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Schaltet die PIN.CH frei.
+   *
+   * @param cardHandle String cardHandle
+   * @throws MissingPreconditionException Falls im Testablauf zuvor kein Aufrufkontext oder Handle
+   *     bestimmt wurde.
+   */
+  public void verifyPin(String cardHandle) throws MissingPreconditionException {
+    if (CommonUtils.isNullOrEmpty(cardHandle)) {
+      throw new MissingPreconditionException("No valid CardHandle found!");
+    }
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = testcaseData.getInvocationContext();
+    checkInvocationContext(invocationContext);
+
+    try {
+      PinVerifier pinVerifier = applicationContext.getBeanFactory().getBean(PinVerifier.class);
+      VerifyPinResult verifyPinResult = pinVerifier.performVerifyPin(invocationContext, cardHandle);
+      testcaseData.setVerifyPinResult(verifyPinResult);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /*
+   * Prüfen, ob das SignDocument richtigerweise fehlschlägt. Das THEN soll generisch einsetzbar sein
+   * unabhängig von der Fehlerursache, damit es in vielen Szenarios einsetzbar ist.
+   *
+   * @return false, wenn erfolgreich signiert wurde anderenfalls true
+   *
+   * @throws MissingPreconditionException wenn keine Daten vorliegen.
+   */
+  public boolean checkSignDocumentHasFailed() throws MissingPreconditionException {
+    if (null == TestcaseData.getInstance().getSignDocumentResult()) {
+      throw new MissingPreconditionException("Es liegt kein Ergebnis einer Signatur vor");
+    }
+    return (!TestcaseData.getInstance().getSignDocumentResult().isValidResponse());
+  }
+
+  /**
+   * Prüft das Ergebnis der letzten Ausführung von VerifyPin.
+   *
+   * @return true, wenn die letzte Ausführung VerifyPin erfolgreich war, andernfalls false.
+   * @throws MissingPreconditionException Falls kein Ergebnis einer Ausführung von VerifyPin
+   *     vorliegt.
+   */
+  public boolean isVerifyPinOk() throws MissingPreconditionException {
+    VerifyPinResult verifyPinResult = TestcaseData.getInstance().getVerifyPinResult();
+    if (verifyPinResult == null) {
+      throw new MissingPreconditionException(
+          "Es liegt kein Ergebnis einer Ausführung von VerifyPin vor.");
+    }
+    return verifyPinResult.isValidResponse();
+  }
+
+  /**
+   * Fordert den Auswurf des im Testfall verwendeten HBAs an. Speichert das Ergebnis des Aufrufs für
+   * die weitere Verarbeitung.
+   *
+   * @throws MissingPreconditionException Falls kein Aufrufkontext gesetzt wurde oder kein
+   *     HBA-Handle verfügbar ist.
+   */
+  public void ejectCard() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = testcaseData.getInvocationContext();
+    checkInvocationContext(invocationContext);
+    checkHbaHandle();
+    try {
+      CardEjector cardEjector = applicationContext.getBeanFactory().getBean(CardEjector.class);
+      EjectCardResult ejectCardResult =
+          cardEjector.performEjectCard(invocationContext, testcaseData.getHbaHandle());
+      testcaseData.setEjectCardResult(ejectCardResult);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Prüft das Ergebnis der letzten Ausführung von EjectCard.
+   *
+   * @return true, wenn die letzte Ausführung von EjectCard erfolgreich war, andernfalls false.
+   * @throws MissingPreconditionException Falls kein Ergebnis einer Ausführung von EjectCard
+   *     vorliegt.
+   */
+  public boolean isEjectCardOk() throws MissingPreconditionException {
+    EjectCardResult ejectCardResult = TestcaseData.getInstance().getEjectCardResult();
+    if (ejectCardResult == null) {
+      throw new MissingPreconditionException(
+          "Es liegt kein Ergebnis einer Ausführung von EjectCard vor.");
+    }
+    return ejectCardResult.isValidResponse();
+  }
+
+  /**
+   * Ruft die Liste der in einem Aufrufkontext verfügbaren Kartenterminals vom Konnektor ab.
+   *
+   * @throws MissingPreconditionException Falls kein Aufrufkontext verfügbar ist.
+   */
+  public void determineCardTerminals() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = testcaseData.getInvocationContext();
+    checkInvocationContext(invocationContext);
+
+    CardTerminalsGetter cardTerminalsGetter =
+        applicationContext.getBeanFactory().getBean(CardTerminalsGetter.class);
+    try {
+      GetCardTerminalsResult getCardTerminalsResult =
+          cardTerminalsGetter.performGetCardTerminals(invocationContext);
+      testcaseData.setGetCardTerminalsResult(getCardTerminalsResult);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Prüft das Ergebnis der letzten Ausführung von GetCardTerminals.
+   *
+   * @return true, wenn die letzte Ausführung von GetCardTerminals erfolgreich war, andernfalls
+   *     false.
+   * @throws MissingPreconditionException Falls kein Ergebnis einer Ausführung von GetCardTerminals
+   *     vorliegt.
+   */
+  public boolean isGetCardTerminalsOk() throws MissingPreconditionException {
+    GetCardTerminalsResult getCardTerminalsResult =
+        TestcaseData.getInstance().getGetCardTerminalsResult();
+    if (getCardTerminalsResult == null) {
+      throw new MissingPreconditionException(
+          "Es liegt kein Ergebnis einer Ausführung von " + "GetCardTerminals vor.");
+    }
+    return getCardTerminalsResult.isValidResponse();
+  }
+
+  /**
+   * Fordert das Stecken des im Testfall verwendeten HBAs an. Speichert das Ergebnis des Aufrufs für
+   * die weitere Verarbeitung.
+   *
+   * @param ctID ID des Terminals, in das die Karte gesteckt werden soll.
+   * @param slot Nummer des Slots, in den die Karte gesteckt werden soll.
+   * @throws MissingPreconditionException Falls kein Aufrufkontext gesetzt wurde oder keine CtId
+   *     verfügbar ist.
+   */
+  public void requestCard(String ctID, int slot) throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    InvocationContext invocationContext = testcaseData.getInvocationContext();
+    checkInvocationContext(invocationContext);
+
+    CardRequestor cardRequestor = applicationContext.getBeanFactory().getBean(CardRequestor.class);
+    try {
+      RequestCardResult requestCardResult =
+          cardRequestor.performRequestCard(invocationContext, ctID, slot);
+      testcaseData.setRequestCardResult(requestCardResult);
+    } catch (IOException exception) {
+      LOGGER.error(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Prüft, dass der letzte Aufruf von RequestCard erfolgreich ausgeführt werden konnte.
+   *
+   * @return true, falls der letzte Aufruf von RequestCard erfolgreich ausgeführt werden konnte,
+   *     andernfalls false.
+   * @throws MissingPreconditionException falls kein Ergebnis einer Ausführung von RequestCard
+   *     vorliegt.
+   */
+  public boolean isRequestCardOk() throws MissingPreconditionException {
+    RequestCardResult requestCardResult = TestcaseData.getInstance().getRequestCardResult();
+    if (requestCardResult == null) {
+      throw new MissingPreconditionException(
+          "Es liegt kein Ergebnis einer Ausführung von RequestCard vor.");
+    }
+    return requestCardResult.isValidResponse();
+  }
+
+  /**
+   * Prüft, ob der letzte Aufruf von ExternalAuthenticate erfolgreich ausgeführt werden konnte.
+   *
+   * @return true, wenn der letzte Aufruf von ExternalAuthenticate erfolgreich ausgeführt werden
+   *     konnte, andernfalls false.
+   * @throws MissingPreconditionException falls kein Ergebnis einer Ausführung von
+   *     ExternalAuthenticate vorliegt.
+   */
+  public boolean isExternalAuthenticateOk() throws MissingPreconditionException {
+    TestcaseData testcaseData = TestcaseData.getInstance();
+    ExternalAuthenticateResult externalAuthenticateResult =
+        testcaseData.getExternalAuthenticateResult();
+    if (externalAuthenticateResult == null) {
+      throw new MissingPreconditionException(
+          "Es liegt kein Ergebnis einer Ausführung von ExternalAuthenticate vor.");
+    }
+    return externalAuthenticateResult.isValidResponse();
+  }
+
+  /**
+   * setzt den angegebenen Arbeitsplatz in den aktuellen Aufrufkontext
+   *
+   * @param arg0 String Workplace
+   */
+  public void changeWorkplace(String arg0) {
+    TestcaseData.getInstance().getInvocationContext().setWorkplace(arg0);
+  }
+
+  /**
+   * Prüft, ob der letzte Aufruf von EjectCard vom Konnektor mit dem SOAP-Fault 4203 beantwortet
+   * wurde.
+   *
+   * @return True, falls der letzte Aufruf von EjectCard vom Konnektor mit dem SOAP-Fault 4203
+   *     beantwortet wurde, andernfalls false.
+   * @throws MissingPreconditionException Falls kein Ergebnis einer Ausführung von EjectCard
+   *     vorliegt.
+   */
+  public boolean isEjectCardSoapFault4203() throws MissingPreconditionException {
+    EjectCardResult ejectCardResult = TestcaseData.getInstance().getEjectCardResult();
+    if (ejectCardResult == null) {
+      throw new MissingPreconditionException("Es liegt kein Ergebnis der Operation EjectCard vor");
+    }
+    return ejectCardResult.isSoapFault4203();
+  }
+
+  /**
+   * Tauscht den Arbeitsplatz im Aufrufkontext.
+   *
+   * @param workplace Der im Aufrufkontext zu setzende Arbeitsplatz.
+   * @throws MissingPreconditionException Falls noch kein Aufrufkontext initialisiert war.
+   */
+  public void switchWorkplace(String workplace) throws MissingPreconditionException {
+    InvocationContext invocationContext = TestcaseData.getInstance().getInvocationContext();
+    checkInvocationContext(invocationContext);
+    invocationContext.setWorkplace(workplace);
   }
 }

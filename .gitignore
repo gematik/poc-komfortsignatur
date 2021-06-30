@@ -1,6 +1,18 @@
 /.idea/
+.vscode/
 *.iml
 **/target/
 /.run/ApplicationStarter.run.xml
+*/**/.classpath
+*/**/.project
+*/**/.factorypath
+*/**/.settings/
+/rezeps.testsuite/logs/
 
 Jenkinsfile
+rezeps.testsuite/src/main/resources/templates/app-context.html
+rezeps.testsuite/src/main/resources/templates/index.html
+rezeps.testsuite/src/test/resources/configuration.CGM.properties
+rezeps.testsuite/src/test/resources/configuration.RISE.properties
+rezeps.testsuite/src/test/resources/configuration.Secunet.properties
+

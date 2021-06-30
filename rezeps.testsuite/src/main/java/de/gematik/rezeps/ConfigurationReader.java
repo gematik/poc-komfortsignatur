@@ -16,17 +16,22 @@
 
 package de.gematik.rezeps;
 
+import de.gematik.rezeps.util.CommonUtils;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.MessageFormat;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Ermöglicht den Zugriff auf die Konfiguration. */
 public class ConfigurationReader {
 
-  private static final String PATH_TO_CONFIGURATION_FILE = "configuration.properties";
+  private String configurationFileName = "configuration.properties";
   private static final String KONNEKTOR_IP = "konnektor_ip";
   private static final String KONNEKTOR_PORT = "konnektor_port";
+  private static final String KONNEKTOR_PROTOKOLL = "konnektor_protokoll";
   private static final String ACCESS_TOKEN_PRESCRIBING_ENTITY = "access_token_prescribing_entity";
   private static final String ACCESS_TOKEN_DISPENSING_ENTITY = "access_token_dispensing_entity";
   private static final String KONNEKTOR_AUTH_SIGNATURE_SERVICE_ENDPOINT =
@@ -44,22 +49,34 @@ public class ConfigurationReader {
   private static final String PATH_TO_CLIENT_TRUSTSTORE = "path_to_client_truststore";
   private static final String CLIENT_TRUSTSTORE_PASSWORD = "client_truststore_password";
 
+  private static final String IDP_DISCOVERY_URL = "idp_discovery_url";
+  private static final String IDP_REDIRECT_URL = "idp_redirect_url";
+  private static final String IDP_CLIENT_ID = "idp_client_id";
+  private static final String CATS_BASEURI = "cats_base";
+
   private static ConfigurationReader instance;
 
   private Properties properties = new Properties();
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationReader.class);
 
   private ConfigurationReader() throws IOException {
+    String testEnvName = System.getProperty("CFG_PROPS", "");
+    if (!CommonUtils.isNullOrEmpty(testEnvName)) {
+      configurationFileName = "configuration." + testEnvName + ".properties";
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.info(
+            MessageFormat.format("using {0} as file {1}", testEnvName, configurationFileName));
+      }
+    }
+
     InputStream inputStream =
-        Thread.currentThread()
-            .getContextClassLoader()
-            .getResourceAsStream(PATH_TO_CONFIGURATION_FILE);
+        Thread.currentThread().getContextClassLoader().getResourceAsStream(configurationFileName);
     if (inputStream != null) {
       properties.load(inputStream);
     } else {
       throw new FileNotFoundException(
           String.format(
-              "The properties file %s was not found on the classpath.",
-              PATH_TO_CONFIGURATION_FILE));
+              "The properties file %s was not found on the classpath.", configurationFileName));
     }
   }
 
@@ -74,6 +91,32 @@ public class ConfigurationReader {
       instance = new ConfigurationReader();
     }
     return instance;
+  }
+
+  public boolean konnektorUseSSL() {
+    return "https://".equalsIgnoreCase(getProtokoll());
+  }
+
+  public String getProtokoll() {
+    String protokoll = getConfigurationProperty(KONNEKTOR_PROTOKOLL);
+    if (CommonUtils.isNullOrEmpty(protokoll)) {
+      return "https://";
+    } else {
+      if (protokoll.endsWith("/")) {
+        return protokoll;
+      } else {
+        return protokoll + "://";
+      }
+    }
+  }
+
+  public String getCatsBaseuri() {
+    String catsbase = getConfigurationProperty(CATS_BASEURI);
+    if (CommonUtils.isNullOrEmpty(catsbase)) {
+      return "http://localhost:9998";
+    } else {
+      return catsbase;
+    }
   }
 
   public String getKonnektorIp() {
@@ -138,6 +181,18 @@ public class ConfigurationReader {
 
   public String getClientTruststorePassword() {
     return getConfigurationProperty(CLIENT_TRUSTSTORE_PASSWORD);
+  }
+
+  public String getIdpDiscoveryUrl() {
+    return getConfigurationProperty(IDP_DISCOVERY_URL);
+  }
+
+  public String getIdpRedirectUrl() {
+    return getConfigurationProperty(IDP_REDIRECT_URL);
+  }
+
+  public String getIdpClientId() {
+    return getConfigurationProperty(IDP_CLIENT_ID);
   }
 
   private String getConfigurationProperty(String propertyKey) {

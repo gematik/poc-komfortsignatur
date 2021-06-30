@@ -18,15 +18,15 @@ package de.gematik.rezeps.authentication;
 
 import de.gematik.rezeps.InvocationContext;
 import de.gematik.ws.conn.connectorcommon.v5.Status;
-import de.gematik.ws.conn.signatureservice.v7.ExternalAuthenticateResponse;
+import de.gematik.ws.conn.signatureservice.v7_4.ExternalAuthenticateResponse;
 import java.io.IOException;
+import oasis.names.tc.dss._1_0.core.schema.Base64Signature;
+import oasis.names.tc.dss._1_0.core.schema.SignatureObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ExternalAuthenticator {
-
-  private static final String STATUS_OK = "OK";
 
   @Autowired PerformExternalAuthenticate performExternalAuthenticate;
 
@@ -39,19 +39,28 @@ public class ExternalAuthenticator {
    * @param dataToBeSigned Die zu signierenden Daten.
    * @return Die signierten Daten.
    */
-  public byte[] authenticateExternally(
+  public ExternalAuthenticateResult authenticateExternally(
       InvocationContext invocationContext, String cardHandle, byte[] dataToBeSigned)
       throws IOException {
-    byte[] signedData = null;
     ExternalAuthenticateResponse externalAuthenticateResponse =
         performExternalAuthenticate.performExternalAuthenticate(
             invocationContext, cardHandle, dataToBeSigned);
 
-    Status status = externalAuthenticateResponse.getStatus();
-    if (status != null && status.getResult().equals(STATUS_OK)) {
-      signedData =
-          externalAuthenticateResponse.getSignatureObject().getBase64Signature().getValue();
+    ExternalAuthenticateResult externalAuthenticateResult = null;
+    if (externalAuthenticateResponse != null) {
+      externalAuthenticateResult = new ExternalAuthenticateResult();
+      Status status = externalAuthenticateResponse.getStatus();
+      if (status != null) {
+        externalAuthenticateResult.setStatus(status.getResult());
+      }
+      SignatureObject signatureObject = externalAuthenticateResponse.getSignatureObject();
+      if (signatureObject != null) {
+        Base64Signature base64Signature = signatureObject.getBase64Signature();
+        if (base64Signature != null) {
+          externalAuthenticateResult.setAuthenticatedData(base64Signature.getValue());
+        }
+      }
     }
-    return signedData;
+    return externalAuthenticateResult;
   }
 }

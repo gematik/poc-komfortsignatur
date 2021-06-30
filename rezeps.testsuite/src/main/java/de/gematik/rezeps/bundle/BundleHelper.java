@@ -16,12 +16,13 @@
 
 package de.gematik.rezeps.bundle;
 
-import de.gematik.rezeps.dataexchange.create.TaskCreateData;
+import de.gematik.rezeps.dataexchange.TaskCreateData;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -45,56 +46,39 @@ import org.xml.sax.SAXException;
 /** Befüllt ein Bundle mit Daten. */
 public class BundleHelper { // NOSONAR
 
-  private static final String PATH_TO_BUNDLE_TEMPLATE = "bundle_template.xml";
-
-  private static final String XPATH_NAME = "/Bundle/entry/resource/Patient/name/family";
-  private static final String XPATH_GIVEN_NAME = "/Bundle/entry/resource/Patient/name/given";
-  private static final String XPATH_SURNAME =
-      "/Bundle/entry/resource/Patient/name/family/extension/valueString";
-  private static final String XPATH_KVNR = "/Bundle/entry/resource/Patient/identifier/value";
-  private static final String XPATH_STREET_AND_HOUSE_NUMBER =
-      "/Bundle/entry/resource/Patient/address/line";
-  private static final String XPATH_STREET =
-      "/Bundle/entry/resource/Patient/address/line/extension[@url=\"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName\"]/valueString";
-  private static final String XPATH_HOUSE_NUMBER =
-      "/Bundle/entry/resource/Patient/address/line/extension[@url=\"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber\"]/valueString";
-  private static final String XPATH_POSTAL_CODE =
-      "/Bundle/entry/resource/Patient/address/postalCode";
-  private static final String XPATH_CITY = "/Bundle/entry/resource/Patient/address/city";
-  private static final String XPATH_BIRTHDAY = "/Bundle/entry/resource/Patient/birthDate";
-
-  private static final String XPATH_IKNR = "/Bundle/entry/resource/Coverage/payor/identifier/value";
-  private static final String XPATH_COVERAGE_NAME = "/Bundle/entry/resource/Coverage/payor/display";
-  private static final String XPATH_STATUS =
-      "/Bundle/entry/resource/Coverage/extension[@url=\"http://fhir.de/StructureDefinition/gkv/versichertenart\"]/valueCoding/code";
-
-  private static final String XPATH_PZN_VALUE =
-      "/Bundle/entry/resource/Medication/code/coding/code";
-  private static final String XPATH_PZN_TEXT = "/Bundle/entry/resource/Medication/code/text";
-
   private static final String ATTRIBUTE_NAME_VALUE = "value";
-
-  private static final String XPATH_PRESCRIPTION_ID = "/Bundle/identifier/value";
 
   private static final String NO_INDENT = "no";
   public static final String OMIT_XML_DECLARATION = "yes";
 
-  private Document bundle;
+  private final Document bundle;
+  protected Properties bundleTemplateProperties;
 
   public BundleHelper() throws IOException, ParserConfigurationException, SAXException {
-    if (this.bundle == null) {
-      this.bundle = convertStringToXmlDocument(initializeBundle());
-    }
+    this.bundle = convertStringToXmlDocument(initializeBundle());
   }
 
   private String initializeBundle() throws IOException {
     InputStream inputStream =
-        Thread.currentThread().getContextClassLoader().getResourceAsStream(PATH_TO_BUNDLE_TEMPLATE);
-    return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+        Thread.currentThread()
+            .getContextClassLoader()
+            .getResourceAsStream("bundle_template.properties");
+    bundleTemplateProperties = new Properties();
+    if (inputStream != null) {
+      bundleTemplateProperties.load(inputStream);
+    }
+
+    inputStream =
+        Thread.currentThread().getContextClassLoader().getResourceAsStream("bundle_template.xml");
+    if (inputStream != null) {
+      return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+    } else {
+      throw new IOException("cannot read bundle_template.xml");
+    }
   }
 
   /**
-   * Initialisert die Patienten-Daten in einem Bundle.
+   * Initialisiert die Patienten-Daten in einem Bundle.
    *
    * @param patient Enthält die zu initialisierenden Patient-Daten.
    * @return Das Bundle mit den initialisierten Daten.
@@ -149,12 +133,11 @@ public class BundleHelper { // NOSONAR
    * Initialisiert die Daten aus dem Task create im Bundle.
    *
    * @param taskCreateData Enthält die zu initialisierenden Daten.
-   * @return Das Bundle mit den initialisierten Daten.
    */
-  public String initializeTaskCreateData(TaskCreateData taskCreateData)
+  public void initializeTaskCreateData(TaskCreateData taskCreateData)
       throws TransformerException, XPathExpressionException {
     initializePrescriptionId(taskCreateData.getPrescriptionId());
-    return xmlDocumentToString();
+    xmlDocumentToString();
   }
 
   /**
@@ -193,7 +176,7 @@ public class BundleHelper { // NOSONAR
   }
 
   private void initializeName(String givenName, String surname) throws XPathExpressionException {
-    Node nameNode = getElementByXPath(XPATH_NAME);
+    Node nameNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_NAME"));
     String name = givenName + " " + surname;
     updateValueAttribute(nameNode, name);
   }
@@ -204,79 +187,84 @@ public class BundleHelper { // NOSONAR
   }
 
   private void initializeGivenName(String givenName) throws XPathExpressionException {
-    Node givenNameNode = getElementByXPath(XPATH_GIVEN_NAME);
+    Node givenNameNode =
+        getElementByXPath(bundleTemplateProperties.getProperty("XPATH_GIVEN_NAME"));
     updateValueAttribute(givenNameNode, givenName);
   }
 
   private void initializeSurname(String surname) throws XPathExpressionException {
-    Node surnameNode = getElementByXPath(XPATH_SURNAME);
+    Node surnameNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_SURNAME"));
     updateValueAttribute(surnameNode, surname);
   }
 
   private void initializeKvnr(String kvnr) throws XPathExpressionException {
-    Node kvnrNode = getElementByXPath(XPATH_KVNR);
+    Node kvnrNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_KVNR"));
     updateValueAttribute(kvnrNode, kvnr);
   }
 
   private void initializeStreetAndHouseNumber(String street, String houseNumber)
       throws XPathExpressionException {
-    Node streetAndHouseNumberNode = getElementByXPath(XPATH_STREET_AND_HOUSE_NUMBER);
+    Node streetAndHouseNumberNode =
+        getElementByXPath(bundleTemplateProperties.getProperty("XPATH_STREET_AND_HOUSE_NUMBER"));
     String streetAndHouseNumber = street + " " + houseNumber;
     updateValueAttribute(streetAndHouseNumberNode, streetAndHouseNumber);
   }
 
   private void initializeStreet(String street) throws XPathExpressionException {
-    Node streetNode = getElementByXPath(XPATH_STREET);
+    Node streetNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_STREET"));
     updateValueAttribute(streetNode, street);
   }
 
   private void initializeHouseNumber(String houseNumber) throws XPathExpressionException {
-    Node houseNumberNode = getElementByXPath(XPATH_HOUSE_NUMBER);
+    Node houseNumberNode =
+        getElementByXPath(bundleTemplateProperties.getProperty("XPATH_HOUSE_NUMBER"));
     updateValueAttribute(houseNumberNode, houseNumber);
   }
 
   private void initializePostalCode(String postalCode) throws XPathExpressionException {
-    Node postalCodeNode = getElementByXPath(XPATH_POSTAL_CODE);
+    Node postalCodeNode =
+        getElementByXPath(bundleTemplateProperties.getProperty("XPATH_POSTAL_CODE"));
     updateValueAttribute(postalCodeNode, postalCode);
   }
 
   private void initializeCity(String city) throws XPathExpressionException {
-    Node cityNode = getElementByXPath(XPATH_CITY);
+    Node cityNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_CITY"));
     updateValueAttribute(cityNode, city);
   }
 
   private void initializeBirthday(String birthday) throws XPathExpressionException {
-    Node birthdayNode = getElementByXPath(XPATH_BIRTHDAY);
+    Node birthdayNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_BIRTHDAY"));
     updateValueAttribute(birthdayNode, birthday);
   }
 
   private void initializeIknr(String iknr) throws XPathExpressionException {
-    Node iknrNode = getElementByXPath(XPATH_IKNR);
+    Node iknrNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_IKNR"));
     updateValueAttribute(iknrNode, iknr);
   }
 
   private void initializeCoverageName(String name) throws XPathExpressionException {
-    Node nameNode = getElementByXPath(XPATH_COVERAGE_NAME);
+    Node nameNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_COVERAGE_NAME"));
     updateValueAttribute(nameNode, name);
   }
 
   private void initializeStatus(String status) throws XPathExpressionException {
-    Node statusNode = getElementByXPath(XPATH_STATUS);
+    Node statusNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_STATUS"));
     updateValueAttribute(statusNode, status);
   }
 
   private void initializePznValue(String pznValue) throws XPathExpressionException {
-    Node pznValueNode = getElementByXPath(XPATH_PZN_VALUE);
+    Node pznValueNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_PZN_VALUE"));
     updateValueAttribute(pznValueNode, pznValue);
   }
 
   private void initializePznText(String pznText) throws XPathExpressionException {
-    Node pznTextNode = getElementByXPath(XPATH_PZN_TEXT);
+    Node pznTextNode = getElementByXPath(bundleTemplateProperties.getProperty("XPATH_PZN_TEXT"));
     updateValueAttribute(pznTextNode, pznText);
   }
 
   private void initializePrescriptionId(String prescriptionId) throws XPathExpressionException {
-    Node prescriptionIdNode = getElementByXPath(XPATH_PRESCRIPTION_ID);
+    Node prescriptionIdNode =
+        getElementByXPath(bundleTemplateProperties.getProperty("XPATH_PRESCRIPTION_ID"));
     updateValueAttribute(prescriptionIdNode, prescriptionId);
   }
 }

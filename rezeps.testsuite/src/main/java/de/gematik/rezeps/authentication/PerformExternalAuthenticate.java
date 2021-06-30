@@ -19,12 +19,13 @@ package de.gematik.rezeps.authentication;
 import de.gematik.rezeps.InvocationContext;
 import de.gematik.rezeps.KonnektorHelper;
 import de.gematik.ws.conn.connectorcontext.v2.ContextType;
-import de.gematik.ws.conn.signatureservice.v7.BinaryDocumentType;
-import de.gematik.ws.conn.signatureservice.v7.ExternalAuthenticate;
-import de.gematik.ws.conn.signatureservice.v7.ExternalAuthenticate.OptionalInputs;
-import de.gematik.ws.conn.signatureservice.v7.ExternalAuthenticateResponse;
+import de.gematik.ws.conn.signatureservice.v7_4.BinaryDocumentType;
+import de.gematik.ws.conn.signatureservice.v7_4.ExternalAuthenticate;
+import de.gematik.ws.conn.signatureservice.v7_4.ExternalAuthenticate.OptionalInputs;
+import de.gematik.ws.conn.signatureservice.v7_4.ExternalAuthenticateResponse;
 import java.io.IOException;
 import oasis.names.tc.dss._1_0.core.schema.Base64Data;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.ws.client.core.support.WebServiceGatewaySupport;
 import org.springframework.ws.soap.client.core.SoapActionCallback;
 
@@ -33,7 +34,7 @@ public class PerformExternalAuthenticate extends WebServiceGatewaySupport {
   private static final String SOAP_ACTION_EXTERNAL_AUTHENTICATE =
       "http://ws.gematik.de/conn/SignatureService/v7.4#ExternalAuthenticate";
   private static final String SIGNATURE_TYPE = "urn:ietf:rfc:3447";
-  private static final String SIGNATURE_SCHEME = "RSASSA-PKCS1-v1_5";
+  private static final String SIGNATURE_SCHEME = "RSASSA-PSS";
 
   /**
    * Führt ein ExternalAuthenticate mittels SMC-B beim Konnektor durch.
@@ -62,14 +63,15 @@ public class PerformExternalAuthenticate extends WebServiceGatewaySupport {
 
     Base64Data base64Data = new Base64Data();
     base64Data.setValue(dataToBeSigned);
+    base64Data.setMimeType(MimeTypeUtils.APPLICATION_OCTET_STREAM_VALUE);
     BinaryDocumentType binaryDocumentType = new BinaryDocumentType();
     binaryDocumentType.setBase64Data(base64Data);
-    externalAuthenticate.setBinaryString(binaryDocumentType);
 
+    externalAuthenticate.setBinaryString(binaryDocumentType);
     return (ExternalAuthenticateResponse)
         getWebServiceTemplate()
             .marshalSendAndReceive(
-                KonnektorHelper.determineCertificateServiceEndpoint(),
+                KonnektorHelper.determineAuthSignatureServiceEndpoint(),
                 externalAuthenticate,
                 new SoapActionCallback(SOAP_ACTION_EXTERNAL_AUTHENTICATE));
   }

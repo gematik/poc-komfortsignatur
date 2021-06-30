@@ -18,10 +18,9 @@ package de.gematik.rezeps.gluecode;
 
 import de.gematik.rezeps.ConfigurationReader;
 import java.io.IOException;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KonnektorGlueCodeAccessTokenTest {
 
@@ -30,6 +29,21 @@ public class KonnektorGlueCodeAccessTokenTest {
 
   private String accessTokenPrescribingEntity;
   private String accessTokenDispensingEntity;
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(KonnektorGlueCodeAccessTokenTest.class);
+
+  @BeforeClass
+  public static void beforeClass() {
+    LOGGER.info(
+        "Set environment to use configuration.unittest.properties file (preventing build failure on other configurations)");
+    System.setProperty("CFG_PROPS", "unittest");
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    LOGGER.info("Cleanup environment");
+    System.clearProperty("CFG_PROPS");
+  }
 
   @Before
   public void setup() throws IOException {

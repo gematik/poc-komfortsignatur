@@ -26,6 +26,8 @@ import de.gematik.ws.conn.signatureservice.v7.SignatureModeEnum;
 import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Test;
+import org.springframework.ws.soap.SoapFault;
+import org.springframework.ws.soap.client.SoapFaultClientException;
 
 public class ComfortSignatureActivatorTest {
 
@@ -57,5 +59,30 @@ public class ComfortSignatureActivatorTest {
     ComfortSignatureResult comfortSignatureResult =
         comfortSignatureActivator.activateComfortSignature(invocationContext, HBA_HANDLE);
     Assert.assertTrue(comfortSignatureResult.isComfortSignatureActivated());
+  }
+
+  @Test
+  public void shouldReceiveSoapFault4018() throws IOException {
+    PerformActivateComfortSignature performActivateComfortSignature =
+        mock(PerformActivateComfortSignature.class);
+
+    SoapFault soapFault = mock(SoapFault.class);
+    when(soapFault.getFaultStringOrReason()).thenReturn(ComfortSignatureResult.ERROR_TEXT_4018);
+    SoapFaultClientException soapFaultClientException = mock(SoapFaultClientException.class);
+    when(soapFaultClientException.getSoapFault()).thenReturn(soapFault);
+
+    InvocationContext invocationContext = new InvocationContext(MANDANT, CLIENT_SYSTEM, WORKPLACE);
+    when(performActivateComfortSignature.performActivateComfortSignature(
+            invocationContext, HBA_HANDLE))
+        .thenThrow(soapFaultClientException);
+
+    ComfortSignatureActivator comfortSignatureActivator = new ComfortSignatureActivator();
+    comfortSignatureActivator.performActivateComfortSignature = performActivateComfortSignature;
+    ComfortSignatureResult comfortSignatureResult =
+        comfortSignatureActivator.activateComfortSignature(invocationContext, HBA_HANDLE);
+
+    ComfortSignatureResult expectedComfortSignatureResult = new ComfortSignatureResult();
+    expectedComfortSignatureResult.setSoapFault(ComfortSignatureResult.ERROR_TEXT_4018);
+    Assert.assertEquals(expectedComfortSignatureResult, comfortSignatureResult);
   }
 }
