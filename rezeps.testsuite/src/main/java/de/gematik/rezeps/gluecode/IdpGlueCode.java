@@ -205,7 +205,7 @@ public class IdpGlueCode {
    * Generiert eine zufällige code_challenge und speichert diese für die weitere Verarbeitung in
    * TestcaseData.
    */
-  public void generateRandomCodeChallenge() {
+  public static void generateRandomCodeChallenge() {
     byte[] codeChallenge = CommonUtils.generateRandomBytes(BYTES_IN_256_BITS);
     TestcaseData.getInstance().setCodeChallenge(codeChallenge);
   }

@@ -64,7 +64,7 @@ public class KonnektorStepDefinitions {
       appContext = SpringApplication.run(KonnektorClient.class, args);
 
       konnektorGlueCode = new KonnektorGlueCode(appContext);
-      idpGlueCode = new IdpGlueCode(appContext);
+      // idpGlueCode = new IdpGlueCode(appContext);
       fdClientGlueCode = new FdClientGlueCode();
     }
     testDataFilePath = System.getProperty("java.io.tmpdir") + File.separatorChar + "TCaseData.dat";
@@ -595,13 +595,13 @@ public class KonnektorStepDefinitions {
   // REZEPS-115
   @When("Testsystem generiert zufällige CodeChallenge")
   public void generateRandomCodeChallenge() {
-    idpGlueCode.generateRandomCodeChallenge();
+    IdpGlueCode.generateRandomCodeChallenge();
   }
 
   // REZEPS-117
   @Then("Konnektor antwortet auf ActivateComfortSignature mit Fault 4018")
   public void checkFault4018ForActivateComfortSignature() throws MissingPreconditionException {
-    konnektorGlueCode.isActivateComfortSignatureSoapFault4018();
+    Assert.assertTrue(konnektorGlueCode.isActivateComfortSignatureSoapFault4018());
   }
 
   @Given("Arbeitsplatz wurde auf {string} gewechselt")
