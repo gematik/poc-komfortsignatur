@@ -1,0 +1,208 @@
+image::images/gematik_logo.jpg[gematik logo]
+== Komfortsignatur API-Dokumentation
+
+Für die QES unterstützt der Konnektor die Komfortsignaturfunktion. In diesem Modus können für ein- und denselben HBA mehrere vom Clientsystem initiierte Signaturaufträge (Einzel- oder Stapelsignatur) abgearbeitet werden, ohne dass der Inhaber des HBA für jeden einzelnen dieser Signaturaufträge die PIN.QES am Kartenterminal eingegeben muss.
+
+Dies ist nur möglich, wenn an der Clientsystemschnittstelle des Konnektors verpflichtend TLS mit Clientauthentisierung konfiguriert ist. Das Einschalten der Komfortsignaturfunktion im Konnektor hat zur Folge, dass alle Operationen an der Clientsystemschnittstelle nur über TLS mit Clientauthentisierung angesprochen werden können (außer ggf. Dienstverzeichnisdienst).
+
+Bei eingeschalteter Komfortsignaturfunktion können potentiell alle HBAs in der Umgebung, in der der Konnektor eingesetzt ist, Komfortsignaturen durchführen. Die eigentliche Aktivierung der Komfortsignatur muss separat für jeden einzelnen HBA erfolgen.
+
+Durch Aufruf der Operation ActivateComfortSignature des Konnektors durch das Primärsystem wird die Nutzung der Komfortsignatur für einen HBA (Komfortsignaturmodus) aktiviert. Dazu muss der HBA-Inhaber die PIN.QES eingeben. Der Konnektor merkt sich für die Cardsession des HBA, dass die Komfortsignatur aktiviert wurde. Bei den folgenden Aufrufen von SignDocument werden dann Komfortsignaturen ausgeführt, solange bis eines der folgenden Abbruchkriterien eintritt:
+
+* Die vom HBA (entsprechend Personalisierung) oder die vom Konnektor durchgesetzte maximale Anzahl von Signaturen wurde erreicht.
+* Das konfigurierte Zeitintervall für die Komfortsignatur ist für die Cardsession abgelaufen.
+* Der Komfortsignaturmodus wurde für die betroffene Cardsession deaktiviert.
+* Der HBA wurde gezogen.
+* Der Sicherheitszustand des HBA wurde zurückgesetzt.
+* Die Komfortsignaturfunktion wurde für den Konnektor durch den Administrator deaktiviert.
+
+Nachfolgend beschreiben wir die Request- und Response-Nachrichten zum Aktivieren der Komfortsignatur, Abfragen des Signatur-Modus und Deaktivieren der Komfortsignatur. Abschließend geben wir Tipps für typisch Anwendungsszenarien.
+
+=== Komfortsignatur aktivieren mittels ActivateComfortSignature
+Diese Operation aktiviert die Komfortsignatur für einen HBA bezogen auf einen Aufrufkontext.
+
+*Request*
+[cols="1h,5a"]
+|===
+|URI          |Endpunkt des Signaturdienstes
+|Method       |POST
+|HTTP Header  |
+----
+Content-Type: text/xml; charset=UTF-8
+Content-Length: 2086
+SOAPAction: "http://ws.gematik.de/conn/SignatureService/v7.5#ActivateComfortSignature"
+----
+|Payload    |
+[source,xml]
+----
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP-ENV:Header/>
+  <SOAP-ENV:Body>
+    <ns5:ActivateComfortSignature xmlns:ns5="http://ws.gematik.de/conn/SignatureService/v7.5"  xmlns:ns3="http://ws.gematik.de/conn/ConnectorCommon/v5.0" xmlns:ns6="http://ws.gematik.de/conn/ConnectorContext/v2.0"  xmlns="">
+      <ns3:CardHandle>1-1-ARZT-BerndClaudius01</ns3:CardHandle> <1>
+      <ns6:Context> <2>
+        <ns3:MandantId>Mandant1</ns3:MandantId>
+        <ns3:ClientSystemId>ClientID1</ns3:ClientSystemId>
+        <ns3:WorkplaceId>Workplace1</ns3:WorkplaceId>
+        <ns3:UserId>847babd4-a80d-4b1c-aa09-018a65cd27d7</ns3:UserId>
+      </ns6:Context>
+    </ns5:ActivateComfortSignature>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+----
+<1> Identifiziert die zu adressierende Karte. Es wird nur der HBA unterstützt.
+<2> MandantId, ClientSystemId, WorkplaceId, UserId verpflichtend zu übergeben; MandantId, WorkplaceId nicht ausgewertet. Für den Aufruf ist eine starke User-ID zu verwenden, welche der Formatvorlage UUID gemäß RFC4122 entspricht.
+|===
+
+*Response*
+[source,xml]
+----
+ResponseCode: 200
+Content-Type: text/xml
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Body>
+<ns3:ActivateComfortSignatureResponse xmlns="http://ws.gematik.de/conn/ConnectorCommon/v5.0"  xmlns:ns3="http://ws.gematik.de/conn/SignatureService/v7.5" >
+  <Status>
+    <Result>OK</Result> <1>
+  </Status>
+  <ns3:SignatureMode>COMFORT</ns3:SignatureMode> <2>
+</ns3:ActivateComfortSignatureResponse>
+</soap:Body>
+</soap:Envelope>
+----
+<1> Enthält den Ausführungsstatus der Operation.
+<2> Signaturmodus des HBA. Enthält bei erfolgreicher Ausführung der Operation den Wert "COMFORT".
+
+Neben dem Fehlercode 4000 (Syntaxfehler) können beim Aktivieren der Komfortsignatur folgende spezifischen Fehlercodes auftreten:
+
+[cols="d,d,d,2d"]
+|===
+|*Fehlercode* | *ErrorType* | *Severity* | *Fehlertext*
+|4270 | Technical | Error | UserId wurde in den letzten 1.000 Vorgängen bereits verwendet
+|4272 | Technical | Error | UserId nicht zulässig
+|===
+
+=== Signatur-Modus abfragen mittels GetSignatureMode
+Diese Operation liefert den aktuell konfigurierten Status der Komfortsignaturfunktion im Konnektor und, falls vorhanden, Informationen zu der aktuell im Konnektor existierenden Komfortsignatursession für das CardHandle und den Aufrufkontext.
+
+*Request*
+[cols="1h,5a"]
+|===
+|URI          |Endpunkt des Signaturdienstes
+|Method       |POST
+|HTTP Header  |
+----
+Content-Type: text/xml; charset=UTF-8
+Content-Length: 2070
+SOAPAction: "http://ws.gematik.de/conn/SignatureService/v7.5#GetSignatureMode"
+----
+|Payload    |
+[source,xml]
+----
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP-ENV:Header/>
+  <SOAP-ENV:Body>
+    <ns5:GetSignatureMode xmlns:ns5="http://ws.gematik.de/conn/SignatureService/v7.5"  xmlns:ns3="http://ws.gematik.de/conn/ConnectorCommon/v5.0"  xmlns:ns6="http://ws.gematik.de/conn/ConnectorContext/v2.0"  xmlns="">
+      <ns3:CardHandle>1-1-ARZT-BerndClaudius01</ns3:CardHandle> <1>
+      <ns6:Context> <2>
+        <ns3:MandantId>Mandant1</ns3:MandantId>
+        <ns3:ClientSystemId>ClientID1</ns3:ClientSystemId>
+        <ns3:WorkplaceId>Workplace1</ns3:WorkplaceId>
+        <ns3:UserId>847babd4-a80d-4b1c-aa09-018a65cd27d7</ns3:UserId>
+      </ns6:Context>
+    </ns5:GetSignatureMode>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+----
+<1> Identifiziert die zu adressierende Karte. Es wird nur der HBA unterstützt.
+<2> MandantId, ClientSystemId, WorkplaceId, UserId verpflichtend zu übergeben. Für den Aufruf ist die für den Request ActivateComfortSignature generierte starke User-ID zu verwenden.
+
+|===
+
+*Response*
+[source,xml]
+----
+ResponseCode: 200
+Content-Type: text/xml
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ns3:GetSignatureModeResponse xmlns="http://ws.gematik.de/conn/ConnectorCommon/v5.0" xmlns:ns3="http://ws.gematik.de/conn/SignatureService/v7.5">
+      <Status>
+        <Result>OK</Result> <1>
+      </Status>
+      <ns3:ComfortSignatureStatus>ENABLED</ns3:ComfortSignatureStatus> <2>
+      <ns3:ComfortSignatureMax>100</ns3:ComfortSignatureMax> <3>
+      <ns3:ComfortSignatureTimer>P0Y0M0DT6H0M0.000S</ns3:ComfortSignatureTimer> <4>
+      <ns3:SessionInfo> <5>
+        <ns3:SignatureMode>COMFORT</ns3:SignatureMode> <6>
+        <ns3:CountRemaining>100</ns3:CountRemaining> <7>
+        <ns3:TimeRemaining>P0Y0M0DT5H0M0.000S</ns3:TimeRemaining> <8>
+      </ns3:SessionInfo>
+    </ns3:GetSignatureModeResponse>
+  </soap:Body>
+</soap:Envelope>
+----
+<1> Enthält den Ausführungsstatus der Operation.
+<2> Komfortsignatur-Konfigurationsstatus des Konnektors.
+<3> Im Konnektor konfigurierte Anzahl von Komfortsignaturen, die ohne erneute PIN-Eingabe ausgeführt werden dürfen.
+<4> Im Konnektor konfiguriertes Zeitintervall, in dem Komfortsignaturen ohne erneute PIN-Eingabe ausgeführt werden dürfen, Format: "PTnHnMnS" (gemäß Datenttyp xsd:duration).
+<5> Ist die Komfortsignatur für das CardHandle und den Aufrufkontext aktiviert, so ist dieses Element vorhanden.
+<6> Signaturmodus der Komfortsignatursession (="COMFORT").
+<7> Verbleibende Anzahl von Komfortsignaturen, die ohne erneute PIN-Eingabe ausgeführt werden dürfen.
+<8> Verbleibende Zeit, in der Komfortsignaturen ohne erneute PIN-Eingabe ausgeführt werden dürfen. Format: "PTnHnMnS" (gemäß Datenttyp xsd:duration).
+
+=== Komfortsignatur deaktivieren mittels DeactivateComfortSignature
+Diese Operation deaktiviert die Komfortsignatur für einen oder mehrere HBAs.
+
+*Request*
+[cols="1h,5a"]
+|===
+|URI          |Endpunkt des Signaturdienstes
+|Method       |POST
+|HTTP Header  |
+----
+Content-Type: text/xml; charset=UTF-8
+Content-Length: 1899
+SOAPAction: "http://ws.gematik.de/conn/SignatureService/v7.5#DeactivateComfortSignature"
+----
+|Payload    |
+[source,xml]
+----
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+<SOAP-ENV:Header/>
+<SOAP-ENV:Body>
+<ns5:DeactivateComfortSignature xmlns:ns5="http://ws.gematik.de/conn/SignatureService/v7.5" xmlns:ns3="http://ws.gematik.de/conn/ConnectorCommon/v5.0" xmlns="">
+  <ns3:CardHandle>1-1-ARZT-BerndClaudius01</ns3:CardHandle> <1>
+</ns5:DeactivateComfortSignature>
+</SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+----
+<1> Identifiziert die zu adressierende Karte. Es wird nur der HBA unterstützt. Mit einem Request können durch Übergabe mehrerer Handles mehrere Komfortsignatur-Sessions gleichzeitig beendet werden.
+
+|===
+
+*Response*
+[source,xml]
+----
+ResponseCode: 200
+Content-Type: text/xml
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Body>
+<ns3:DeactivateComfortSignatureResponse xmlns="http://ws.gematik.de/conn/ConnectorCommon/v5.0" xmlns:ns3="http://ws.gematik.de/conn/SignatureService/v7.5">
+  <Status>
+    <Result>OK</Result> <1>
+  </Status>
+</ns3:DeactivateComfortSignatureResponse>
+</soap:Body>
+</soap:Envelope>
+----
+<1> Enthält den Ausführungsstatus der Operation.
+
+=== Tipps für Anwendungsszenarien
+
+Für den Ablauf in der Arztpraxis wird empfohlen morgens die Komfortsignatur zu aktivieren und die dabei verwendete User-ID zu speichern. Zur Aktivierung der Komfortsignatur muss eine starke User-ID verwendet werden, welche der Formatvorlage UUID gemäß RFC4122 entspricht. Beim Aktivieren der Komfortsignatur wird der Sicherheitszustand der PIN.QES erhöht. Falls es im Laufe des Tages erforderlich wird, zusätzlich den Status der PIN.CH des verwendeten HBAs zu erhöhen, so soll dazu die starke User-ID verwendet werden, welche beim Aktivieren der Komfortsignatur genutzt wurde. Falls von dieser Empfehlung abgewichen wird und der Sicherheitszustand der PIN.CH bereits erhöht ist, bevor die Komfortsignatur aktiviert werden soll, so können die Operationen EjectCard und RequestCard verwendet werden, um den HBA zurückzusetzen. Siehe dazu A_21528 "PS: Zurücksetzen des HBA bei neuer UserID" im Implementierungsleitfaden Primärsysteme.
+
+Es ist möglich die Komfortsignatur in mehreren Behandlungszimmern zu nutzen. Dabei ist es erforderlich den HBA in ein Kartenterminal zu stecken, das als RemoteKT von allen Arbeitsplätzen aus zugreifbar ist. Der HBA wird dann mittels ActivateComfortSignature und Eingabe der PIN.QES freigeschaltet. Ist der HBA nicht in einem lokalen Kartenterminal gesteckt, so kann die PIN-Eingabe auch mittels RemotePIN erfolgen. Die Signaturaufträge verwenden dann die gleiche CientSystem-ID und User-ID, die beim Aktivieren der Komfortsignatur verwendet wurden. Details können in Kapitel 4.4.2.2 "Verwalten der Komfortsignaturfunktion" des Implementierungsleitfadens Primärsysteme nachgelesen werden.

@@ -1,3 +1,6 @@
+#### Die API-Beschreibung der Komfortsignatur befindet sich [hier](documentation/comfortsignature.adoc).
+
+
 # Proof of Concept Komfortsignatur
 ## Überblick
 
