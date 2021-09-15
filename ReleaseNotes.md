@@ -1,3 +1,6 @@
+# Release 0.4.0
+In der README wurde ein Abschnitt ergänzt, der detailliert beschreibt, wie mittels JAXB Bindings die Klassen des SignatureService V7.4 generiert und vorgehalten werden können, die vom AuthSignatureService benötigt werden.
+
 # Release 0.3.0
 Es wurde die Schnittstellenbeschreibung zur Komfortsignatur ergänzt.
 

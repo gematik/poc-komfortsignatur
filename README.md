@@ -23,12 +23,12 @@ unterstützt).
 Um die Client-Schnittstelle des Konnektors für die Komfortsignatur nutzen zu können, werden zunächst
 aus den WSDL-Beschreibungen der Schnittstelle mittels JAXB Java-Klassen generiert. Dies erfolgt
 währed des Maven Builds. In der Datei rezeps.testsuite/pom.xml kann anhand des Plugins 
-org.codehaus.mojo / jaxws-maven-plugin die Konfiguration nachvollzogen werden. Wir weisen auf 
+org.codehaus.mojo:jaxws-maven-plugin die Konfiguration nachvollzogen werden. Wir weisen auf 
 folgende Besonderheit hin: Aktuell verwendet der AuthSignatureService Nachrichten aus dem 
 SignatureService, jedoch in einer älteren Version. Daher ist es notwendig die Nachichten des
-AuthSignatureService separat zu generieren und vorzuhalten. Wir lösen dies mittels JAXB Bindings.
-Die vom AuthSignatureService benötigten Nachrichten des SignatureService werden dabei in ein
-separates Package generiert.
+AuthSignatureService separat zu generieren und vorzuhalten. Wir lösen dies mittels JAXB Bindings. 
+Eine detaillierte Beschreibung findet sich weiter unten im Abschnitt "Java-Klassen für den 
+AuthSignatureService generieren".
 
 Die Szenarien sind in folgenden Dateien abgelegt:
 * rezeps.testsuite/src/test/resources/features/poc_komfortsignatur.feature
@@ -47,6 +47,17 @@ Von dort aus können die Abläufe nachvollzogen werden.
     SOAP-Nachrichten
   * Perform*NameDerKonnektorOperation*: Befüllt die Datenstruktur, die den SOAP-Request
     repräsentiert, sendet diesen und empfängt die Response
+
+## Java-Klassen für den AuthSignatureService generieren 
+
+Das Primärsystem muss beide Versionen des SignatureService unterstützen (v7.4 und V7.5). Die Nachrichten des AuthSignatureService müssen den SignatureService v7.4 verwenden. Daher ist es notwendig, die Nachrichten des AuthSignatureService separat zu generieren und vorzuhalten. In 
+diesem PoC lösen wir dies mittes JAXB Bindings wie folgt:
+
+In der Datei rezeps.testsuite/pom.xml sieht man in der Konfiguration des Plugins org.codehaus.mojo:jaxws-maven-plugin, dass in der Execution mit der id general zunächst die Klassen u.a. des SignatureService in der Version V7.5.5 generiert werden. Für den AuthSignatureService gibt es eine separate Execution mit der id auth_signature_service. Hier werden die Klassen für den AuthSignatureService in der Version 7.4.1 generiert. Dabei werden zwei Bindings referenziert:
+- authSignatureService_V7_4.jaxws.xjb
+- signatureService_V7_4.jaxws.xjb
+
+Diese beiden Bindings liegen im Verzeichnis rezeps.testsuite/src/jaxws. Mittels dieser Bindings wird festgelegt, dass Objekte des AuthSignatureService V7.4.1 und des SignatureService V7.4 in eigene Packages generiert werden, beispielsweise de.gematik.ws.conn.signatureservice.v7_4 für den SignatureService V7.4. Bei der Implementierung ist darauf zu achten, dass entsprechend des Kontextes die Klassen der intendierten Version des SignatureService verwendet werden.
 
 Die nachfolgende Beschreibung richtet sich an die Entwickler:innen der Testsuite:
 
